@@ -162,9 +162,9 @@ tait (fst M)     γ h = let _ , _ , step-to-pair , ht-M₁ , _ = tait M γ h in
                        ht-reverse-steps (step-trans (compatible fst-step step-to-pair) (step fst refl)) ht-M₁
 tait (snd M)     γ h = let _ , _ , step-to-pair , _ , ht-M₂ = tait M γ h in
                        ht-reverse-steps (step-trans (compatible snd-step step-to-pair) (step snd refl)) ht-M₂
-tait (ƛ M₂)      γ h = subst (exts γ) M₂ , refl , λ M₁ ht' →
-                         let bar = tait M₂ (extend M₁ γ) λ { Z → ht' ; (S x) → h x } in
-                         Eq.subst (ht _) trustMe bar  -- FIXME
+tait (ƛ M₂)      γ h = subst (exts γ) M₂ , refl , λ M₁ ht₁ →
+                         let ht₂ = tait M₂ (extend M₁ γ) λ { Z → ht₁ ; (S x) → h x } in
+                         Eq.subst (ht _) trustMe ht₂  -- FIXME
 tait (M₁ · M₂)   γ h = let _ , step-to-lam , ht₁ = tait M₁ γ h in
                        let ht₂ = tait M₂ γ h in
                        ht-reverse-steps (step-trans (compatible app-step step-to-lam) (step app refl)) (ht₁ (subst γ M₂) ht₂ )
