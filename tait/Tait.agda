@@ -3,6 +3,9 @@ module Tait where
 -- Boilerplate for contexts and substitutions inspired by:
 -- https://plfa.github.io/DeBruijn/
 
+-- Proof technique from "How to (Re)Invent Tait's Method":
+-- http://www.cs.cmu.edu/~rwh/courses/chtt/pdfs/tait.pdf
+
 open import Data.Sum
 open import Data.Product
 open import Function using (_∘_)
