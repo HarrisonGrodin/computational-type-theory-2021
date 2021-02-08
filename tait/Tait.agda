@@ -29,13 +29,21 @@ data Ctx : Set where
   ∅   : Ctx
   _#_ : Ctx → Type → Ctx
 
-data All : (p : Type → Set) → Ctx → Set where
-  ∅   : ∀ {p} → All p ∅
-  _#_ : ∀ {p} → ∀ {Γ A} → All p Γ → p A → All p (Γ # A)
+data All (p : Type → Set) : Ctx → Set where
+  ∅   : All p ∅
+  _#_ : ∀ {Γ A} → All p Γ → p A → All p (Γ # A)
+
+map-all : {p q : Type → Set} → {σ : Ctx} → ({x : Type} → p x → q x) → All p σ → All q σ
+map-all f ∅       = ∅
+map-all f (σ # x) = map-all f σ # f x
 
 data _∋_ : Ctx → Type → Set where
-  Z  : ∀ {Γ A} → (Γ # A) ∋ A
-  S_ : ∀ {Γ A B} → Γ ∋ A → (Γ # B) ∋ A
+  Z : ∀ {Γ A} → (Γ # A) ∋ A
+  S : ∀ {Γ A B} → Γ ∋ A → (Γ # B) ∋ A
+
+nth : ∀ {Γ A p} → All p Γ → Γ ∋ A → p A
+nth (Γ # h) Z     = h
+nth (Γ # _) (S x) = nth Γ x
 
 ext : ∀ {Γ Δ}
   → (∀ {A} →       Γ ∋ A →     Δ ∋ A)
@@ -69,33 +77,36 @@ rename ρ (ƛ N)          = ƛ (rename (ext ρ) N)
 rename ρ (L · M)        = (rename ρ L) · (rename ρ M)
 
 Subst : (Γ Δ : Ctx) → Set
-Subst Γ Δ = ∀ {A} → Γ ∋ A → Δ ⊢ A
+Subst Γ Δ = All (Δ ⊢_) Γ
+
+shift : {Γ Δ : Ctx} → {A : Type} → (γ : Subst Γ Δ) → Subst Γ (Δ # A)
+shift = map-all (rename S)
+
+id-subst : (Γ : Ctx) → Subst Γ Γ
+id-subst ∅       = ∅
+id-subst (Γ # x) = shift (id-subst Γ) # (` Z)
 
 exts : ∀ {Γ Δ} → Subst Γ Δ → ∀ {A} → Subst (Γ # A) (Δ # A)
-exts σ Z      =  ` Z
-exts σ (S x)  =  rename S_ (σ x)
+exts γ = shift γ # (` Z)
 
-extend : ∀ {Γ Δ A} → Δ ⊢ A → Subst Γ Δ → Subst (Γ # A) Δ
-extend M γ Z     = M
-extend M γ (S x) = γ x
 
 subst : ∀ {Γ Δ} → Subst Γ Δ → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
-subst σ (` x)       = σ x
-subst σ ⋆           = ⋆
-subst σ yes         = yes
-subst σ no          = no
-subst σ ⟨ M₁ , M₂ ⟩ = ⟨ subst σ M₁ , subst σ M₂ ⟩
-subst σ (fst M)     = fst (subst σ M)
-subst σ (snd M)     = snd (subst σ M)
-subst σ (ƛ M)       = ƛ (subst (exts σ) M)
-subst σ (M₁ · M₂)   = subst σ M₁ · subst σ M₂
+subst γ (` x)       = nth γ x
+subst γ ⋆           = ⋆
+subst γ yes         = yes
+subst γ no          = no
+subst γ ⟨ M₁ , M₂ ⟩ = ⟨ subst γ M₁ , subst γ M₂ ⟩
+subst γ (fst M)     = fst (subst γ M)
+subst γ (snd M)     = snd (subst γ M)
+subst γ (ƛ M)       = ƛ (subst (exts γ) M)
+subst γ (M₁ · M₂)   = subst γ M₁ · subst γ M₂
 
 _[_] : ∀ {Γ A B}
   → Γ # B ⊢ A
   → Γ ⊢ B
     ---------
   → Γ ⊢ A
-_[_] {Γ} {A} {B} N M = subst {Γ # B} {Γ} (extend M `_) {A} N
+_[_] {Γ} {A} {B} N M = subst {Γ # B} {Γ} (id-subst Γ # M) {A} N
 
 data _final : ∀ {A} → ∅ ⊢ A → Set where
   yes  : yes final
@@ -131,7 +142,7 @@ ht (A₁ ∧ A₂) M = ∃ λ N₁ → ∃ λ N₂ → (M ↦* ⟨ N₁ , N₂ �
 ht (A₂ ⊃ A)  M = ∃ λ N → (M ↦* ƛ N) × (∀ N₂ → ht A₂ N₂ → ht A (N [ N₂ ]))
 
 HT : ∀ {Γ} → Subst Γ ∅ → Set
-HT {Γ} γ = ∀ {A} → (x : Γ ∋ A) → ht A (γ x)
+HT {Γ} γ = ∀ {A} → (x : Γ ∋ A) → ht A (nth γ x)
 
 ht-reverse-step : ∀ {A M M'} → M ↦ M' → ht A M' → ht A M
 ht-reverse-step {unit}   = step
@@ -157,22 +168,22 @@ tait (fst M)     γ h = let _ , _ , step-to-pair , ht-M₁ , _ = tait M γ h in
 tait (snd M)     γ h = let _ , _ , step-to-pair , _ , ht-M₂ = tait M γ h in
                        ht-reverse-steps (step-trans (compatible snd-step step-to-pair) (step snd refl)) ht-M₂
 tait (ƛ M₂)      γ h = subst (exts γ) M₂ , refl , λ M₁ ht₁ →
-                         let ht₂ = tait M₂ (extend M₁ γ) λ { Z → ht₁ ; (S x) → h x } in
+                         let ht₂ = tait M₂ (γ # M₁) λ { Z → ht₁ ; (S x) → h x } in
                          Eq.subst (ht _) trustMe ht₂  -- FIXME
 tait (M₁ · M₂)   γ h = let _ , step-to-lam , ht₁ = tait M₁ γ h in
                        let ht₂ = tait M₂ γ h in
                        ht-reverse-steps (step-trans (compatible app-step step-to-lam) (step app refl)) (ht₁ (subst γ M₂) ht₂ )
 
-subst-lemma : ∀ {Γ A} → (M : Γ ⊢ A) → subst `_ M ≡ M
-subst-lemma (` x)       = Eq.refl
+subst-lemma : ∀ {Γ A} → (M : Γ ⊢ A) → subst (id-subst Γ) M ≡ M
+subst-lemma (` x)       = trustMe  -- FIXME
 subst-lemma ⋆           = Eq.refl
 subst-lemma yes         = Eq.refl
 subst-lemma no          = Eq.refl
 subst-lemma ⟨ M₁ , M₂ ⟩ = Eq.cong₂ ⟨_,_⟩ (subst-lemma M₁) (subst-lemma M₂)
 subst-lemma (fst M)     = Eq.cong fst (subst-lemma M)
 subst-lemma (snd M)     = Eq.cong snd (subst-lemma M)
-subst-lemma {Γ} (ƛ M)   = trustMe  -- FIXME
+subst-lemma {Γ} (ƛ M)   = Eq.cong ƛ trustMe  -- FIXME
 subst-lemma (M₁ · M₂)   = Eq.cong₂ _·_ (subst-lemma M₁) (subst-lemma M₂)
 
 bools-terminate : (M : ∅ ⊢ bool) → M ↦* yes ⊎ M ↦* no
-bools-terminate M = Eq.subst (λ M → M ↦* yes ⊎ M ↦* no) (subst-lemma M) (tait M `_ (λ {_} ()))
+bools-terminate M = Eq.subst (λ M → M ↦* yes ⊎ M ↦* no) (subst-lemma M) (tait M ∅ (λ {_} ()))
