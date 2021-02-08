@@ -162,3 +162,17 @@ tait (ƛ M₂)      γ h = subst (exts γ) M₂ , refl , λ M₁ ht₁ →
 tait (M₁ · M₂)   γ h = let _ , step-to-lam , ht₁ = tait M₁ γ h in
                        let ht₂ = tait M₂ γ h in
                        ht-reverse-steps (step-trans (compatible app-step step-to-lam) (step app refl)) (ht₁ (subst γ M₂) ht₂ )
+
+subst-lemma : ∀ {Γ A} → (M : Γ ⊢ A) → subst `_ M ≡ M
+subst-lemma (` x)       = Eq.refl
+subst-lemma ⋆           = Eq.refl
+subst-lemma yes         = Eq.refl
+subst-lemma no          = Eq.refl
+subst-lemma ⟨ M₁ , M₂ ⟩ = Eq.cong₂ ⟨_,_⟩ (subst-lemma M₁) (subst-lemma M₂)
+subst-lemma (fst M)     = Eq.cong fst (subst-lemma M)
+subst-lemma (snd M)     = Eq.cong snd (subst-lemma M)
+subst-lemma {Γ} (ƛ M)   = trustMe  -- FIXME
+subst-lemma (M₁ · M₂)   = Eq.cong₂ _·_ (subst-lemma M₁) (subst-lemma M₂)
+
+bools-terminate : (M : ∅ ⊢ bool) → M ↦* yes ⊎ M ↦* no
+bools-terminate M = Eq.subst (λ M → M ↦* yes ⊎ M ↦* no) (subst-lemma M) (tait M `_ (λ {_} ()))
