@@ -45,7 +45,7 @@ ext ρ Z      =  Z
 ext ρ (S x)  =  S (ρ x)
 
 data _⊢_ : Ctx → Type → Set where
-  `_    : ∀ {Γ A} → Γ ∋ A → Γ ⊢ A
+  `_     : ∀ {Γ A} → Γ ∋ A → Γ ⊢ A
   ⋆      : ∀ {Γ} → Γ ⊢ unit
   yes no : ∀ {Γ} → Γ ⊢ bool
   ⟨_,_⟩  : ∀ {Γ A₁ A₂} → Γ ⊢ A₁ → Γ ⊢ A₂ → Γ ⊢ (A₁ ∧ A₂)
@@ -68,15 +68,16 @@ rename ρ (snd M)        = snd (rename ρ M)
 rename ρ (ƛ N)          = ƛ (rename (ext ρ) N)
 rename ρ (L · M)        = (rename ρ L) · (rename ρ M)
 
-exts : ∀ {Γ Δ}
-  → (∀ {A} →       Γ ∋ A →     Δ ⊢ A)
-    ---------------------------------
-  → (∀ {A B} → Γ # B ∋ A → Δ # B ⊢ A)
+Subst : (Γ Δ : Ctx) → Set
+Subst Γ Δ = ∀ {A} → Γ ∋ A → Δ ⊢ A
+
+exts : ∀ {Γ Δ} → Subst Γ Δ → ∀ {A} → Subst (Γ # A) (Δ # A)
 exts σ Z      =  ` Z
 exts σ (S x)  =  rename S_ (σ x)
 
-Subst : (Γ Δ : Ctx) → Set
-Subst Γ Δ = ∀ {A} → Γ ∋ A → Δ ⊢ A
+extend : ∀ {Γ Δ A} → Δ ⊢ A → Subst Γ Δ → Subst (Γ # A) Δ
+extend M γ Z     = M
+extend M γ (S x) = γ x
 
 subst : ∀ {Γ Δ} → Subst Γ Δ → (∀ {A} → Γ ⊢ A → Δ ⊢ A)
 subst σ (` x)       = σ x
@@ -94,11 +95,7 @@ _[_] : ∀ {Γ A B}
   → Γ ⊢ B
     ---------
   → Γ ⊢ A
-_[_] {Γ} {A} {B} N M =  subst {Γ # B} {Γ} σ {A} N
-  where
-  σ : ∀ {A} → Γ # B ∋ A → Γ ⊢ A
-  σ Z      =  M
-  σ (S x)  =  ` x
+_[_] {Γ} {A} {B} N M = subst {Γ # B} {Γ} (extend M `_) {A} N
 
 data _final : ∀ {A} → ∅ ⊢ A → Set where
   yes  : yes final
@@ -128,10 +125,10 @@ compatible lift refl       = refl
 compatible lift (step x s) = step (lift x) (compatible lift s)
 
 ht : (A : Type) → ∅ ⊢ A → Set
-ht unit M      = M ↦* ⋆
-ht bool M      = (M ↦* yes) ⊎ (M ↦* no)
+ht unit      M = M ↦* ⋆
+ht bool      M = (M ↦* yes) ⊎ (M ↦* no)
 ht (A₁ ∧ A₂) M = ∃ λ N₁ → ∃ λ N₂ → (M ↦* ⟨ N₁ , N₂ ⟩) × (ht A₁ N₁ × ht A₂ N₂)
-ht (A₂ ⊃ A) M  = ∃ λ N → (M ↦* ƛ N) × (∀ N₂ → ht A₂ N₂ → ht A (N [ N₂ ]))
+ht (A₂ ⊃ A)  M = ∃ λ N → (M ↦* ƛ N) × (∀ N₂ → ht A₂ N₂ → ht A (N [ N₂ ]))
 
 HT : ∀ {Γ} → Subst Γ ∅ → Set
 HT {Γ} γ = ∀ {A} → (x : Γ ∋ A) → ht A (γ x)
@@ -148,9 +145,6 @@ ht-reverse-steps (step x s) h = ht-reverse-step x (ht-reverse-steps s h)
 
 _>>_∋_ : (Γ : Ctx) → (A : Type) → Γ ⊢ A → Set
 Γ >> A ∋ M = (γ : Subst Γ ∅) → (h : HT γ) → ht A (subst γ M)
-
-extend : ∀ {Γ Δ A} → Δ ⊢ A → Subst Γ Δ → Subst (Γ # A) Δ
-extend M γ = λ { Z → M ; (S x) → γ x }
 
 tait : ∀ {Γ A} → (M : Γ ⊢ A) → Γ >> A ∋ M
 tait (` x)       γ h = h x
