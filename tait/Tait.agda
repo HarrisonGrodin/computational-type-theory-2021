@@ -29,10 +29,6 @@ data Ctx : Set where
   ∅   : Ctx
   _#_ : Ctx → Type → Ctx
 
-data All : (p : Type → Set) → Ctx → Set where
-  ∅   : ∀ {p} → All p ∅
-  _#_ : ∀ {p} → ∀ {Γ A} → All p Γ → p A → All p (Γ # A)
-
 data _∋_ : Ctx → Type → Set where
   Z  : ∀ {Γ A} → (Γ # A) ∋ A
   S_ : ∀ {Γ A B} → Γ ∋ A → (Γ # B) ∋ A
@@ -143,6 +139,8 @@ ht-reverse-steps : ∀ {A M M'} → M ↦* M' → ht A M' → ht A M
 ht-reverse-steps refl       h = h
 ht-reverse-steps (step x s) h = ht-reverse-step x (ht-reverse-steps s h)
 
+-- Primary Theorem
+
 _>>_∋_ : (Γ : Ctx) → (A : Type) → Γ ⊢ A → Set
 Γ >> A ∋ M = (γ : Subst Γ ∅) → (h : HT γ) → ht A (subst γ M)
 
@@ -163,6 +161,8 @@ tait (M₁ · M₂)   γ h = let _ , step-to-lam , ht₁ = tait M₁ γ h in
                        let ht₂ = tait M₂ γ h in
                        ht-reverse-steps (step-trans (compatible app-step step-to-lam) (step app refl)) (ht₁ (subst γ M₂) ht₂ )
 
+-- Corollary
+
 subst-lemma : ∀ {Γ A} → (M : Γ ⊢ A) → subst `_ M ≡ M
 subst-lemma (` x)       = Eq.refl
 subst-lemma ⋆           = Eq.refl
@@ -171,7 +171,7 @@ subst-lemma no          = Eq.refl
 subst-lemma ⟨ M₁ , M₂ ⟩ = Eq.cong₂ ⟨_,_⟩ (subst-lemma M₁) (subst-lemma M₂)
 subst-lemma (fst M)     = Eq.cong fst (subst-lemma M)
 subst-lemma (snd M)     = Eq.cong snd (subst-lemma M)
-subst-lemma {Γ} (ƛ M)   = trustMe  -- FIXME
+subst-lemma (ƛ M)       = trustMe  -- FIXME
 subst-lemma (M₁ · M₂)   = Eq.cong₂ _·_ (subst-lemma M₁) (subst-lemma M₂)
 
 bools-terminate : (M : ∅ ⊢ bool) → M ↦* yes ⊎ M ↦* no
