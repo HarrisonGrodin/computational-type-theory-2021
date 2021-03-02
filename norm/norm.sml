@@ -41,29 +41,16 @@ structure Normal =
     | Snd of neutral
     | App of neutral * normal
 
-    fun toTerm (n : normal) : Term.t =
-      case n of
-        Neutral u     => toTerm' u
-      | Triv          => Term.Triv
-      | Pair (n1, n2) => Term.Pair (toTerm n1, toTerm n2)
-      | Lam (x, n)    => Term.Lam (x, toTerm n)
-    and toTerm' (u : neutral) : Term.t =
-      case u of
-        Var x      => Term.Var x
-      | Fst u      => Term.Fst (toTerm' u)
-      | Snd u      => Term.Snd (toTerm' u)
-      | App (u, n) => Term.App (toTerm' u, toTerm n)
-
     fun subst (t : Term.t) (x : Variable.t) : normal -> Term.t =
       fn Neutral u     => subst' t x u
-      | Triv          => Term.Triv
-      | Pair (n1, n2) => Term.Pair (subst t x n1, subst t x n2)
-      | Lam (y, n1)   => Term.Lam (y, subst (if Variable.eq (x, y) then Term.Var y else t) x n1)
+       | Triv          => Term.Triv
+       | Pair (n1, n2) => Term.Pair (subst t x n1, subst t x n2)
+       | Lam (y, n1)   => Term.Lam (y, subst (if Variable.eq (x, y) then Term.Var y else t) x n1)
     and subst' (t : Term.t) (x : Variable.t) : neutral -> Term.t =
       fn Var y       => if Variable.eq (x, y) then t else Term.Var y
-      | Fst u       => Term.Fst (subst' t x u)
-      | Snd u       => Term.Snd (subst' t x u)
-      | App (u, n1) => Term.App (subst' t x u, subst t x n1)
+       | Fst u       => Term.Fst (subst' t x u)
+       | Snd u       => Term.Snd (subst' t x u)
+       | App (u, n1) => Term.App (subst' t x u, subst t x n1)
   end
 
 exception TypeError
