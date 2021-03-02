@@ -25,15 +25,6 @@ structure Term =
     | Snd of t
     | Lam of Variable.t * t
     | App of t * t
-
-    fun subst (term : t) (x : Variable.t) : t -> t =
-      fn Var y         => if Variable.eq (x, y) then term else Var y
-       | Triv          => Triv
-       | Pair (m1, m2) => Pair (subst term x m1, subst term x m2)
-       | Fst m         => Fst (subst term x m)
-       | Snd m         => Snd (subst term x m)
-       | Lam (y, m)    => if Variable.eq (x, y) then Lam (y, m) else Lam (y, subst term x m)
-       | App (m1, m2)  => App (subst term x m1, subst term x m2)
   end
 
 structure Normal =
@@ -62,6 +53,17 @@ structure Normal =
       | Fst u      => Term.Fst (toTerm' u)
       | Snd u      => Term.Snd (toTerm' u)
       | App (u, n) => Term.App (toTerm' u, toTerm n)
+
+    fun subst (t : Term.t) (x : Variable.t) : normal -> Term.t =
+      fn Neutral u     => subst' t x u
+      | Triv          => Term.Triv
+      | Pair (n1, n2) => Term.Pair (subst t x n1, subst t x n2)
+      | Lam (y, n1)   => Term.Lam (y, subst (if Variable.eq (x, y) then Term.Var y else t) x n1)
+    and subst' (t : Term.t) (x : Variable.t) : neutral -> Term.t =
+      fn Var y       => if Variable.eq (x, y) then t else Term.Var y
+      | Fst u       => Term.Fst (subst' t x u)
+      | Snd u       => Term.Snd (subst' t x u)
+      | App (u, n1) => Term.App (subst' t x u, subst t x n1)
   end
 
 exception TypeError
@@ -87,7 +89,7 @@ fun norm (term : Term.t) : Normal.normal =
   | Term.App (m1, m2)  => (
       case norm m1 of
         Normal.Neutral u  => Normal.Neutral (Normal.App (u, norm m2))
-      | Normal.Lam (x, n) => norm (Term.subst m2 x (Normal.toTerm n))
+      | Normal.Lam (x, n) => norm (Normal.subst m2 x n)
       | _                 => raise TypeError
     )
 
