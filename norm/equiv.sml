@@ -120,13 +120,13 @@ fun x >>= f = Option.mapPartial f x
 infixr 0 >>
 fun f >> g = g o f
 
-fun check (ctx : ctx) (m : Term.t) (m' : Term.t) (a : Type.t) : unit option =
+fun check (ctx : ctx) (m : Term.t) (m' : Term.t) (a : Type.t) : Normal.normal option =
   case a of
-    Type.Unit => return ()
+    Type.Unit => return Normal.Triv
   | Type.Prod (a1, a2) =>
-      check ctx (Term.Fst m) (Term.Fst m') a1 >>= (fn () =>
-        check ctx (Term.Snd m) (Term.Snd m') a2 >>= (fn () =>
-          return ()
+      check ctx (Term.Fst m) (Term.Fst m') a1 >>= (fn n1 =>
+        check ctx (Term.Snd m) (Term.Snd m') a2 >>= (fn n2 =>
+          return (Normal.Pair (n1, n2))
         )
       )
   | Type.Arrow (a1, a2) =>
@@ -138,11 +138,12 @@ fun check (ctx : ctx) (m : Term.t) (m' : Term.t) (a : Type.t) : unit option =
           (Term.App (m, Term.Var x))
           (Term.App (m', Term.Var x))
           a2
+        >>= (fn n => return (Normal.Lam (x, n)))
       end
   | Type.Answer => (
       case (norm m, norm m') of
         (Normal.Neutral u, Normal.Neutral u') =>
-          infer ctx u u' >>= (ignore >> return)
+          infer ctx u u' >>= (fn _ => return (Normal.Neutral u))
       | _ => raise TypeError
     )
 
@@ -162,7 +163,7 @@ and infer (ctx : ctx) (u : Normal.neutral) (u' : Normal.neutral) : Type.t option
     )
   | (Normal.App (u, m), Normal.App (u', m')) => infer ctx u u' >>= (
       fn Type.Arrow (a1, a2) =>
-          check ctx (Normal.toTerm m) (Normal.toTerm m') a1 >>= (fn () =>
+          check ctx (Normal.toTerm m) (Normal.toTerm m') a1 >>= (fn _ =>
             return a2
           )
        | _                   => raise TypeError
@@ -177,10 +178,11 @@ val demo =
   let
     open Type Term
     val x = Variable.new ()
+    val y = Variable.new ()
   in
     check
       Ctx.empty
-      (Lam (x, Var x))
-      (Lam (x, Triv))
-      (Arrow (Unit, Unit))
+      (Lam (x, Pair (Triv, App (Lam (y, Result true), Var x))))
+      (Lam (x, Pair (Var x, Result true)))
+      (Arrow (Unit, Prod (Unit, Answer)))
   end
