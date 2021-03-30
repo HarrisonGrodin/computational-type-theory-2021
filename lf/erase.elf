@@ -1,0 +1,59 @@
+erase : {a} el a -> exp -> type.
+
+- : erase one null e/null.
+
+- : erase two yes e/yes.
+- : erase two no e/no.
+
+- : {a1} {a2} {e1} {e2} {e1'} {e2'}
+  erase _ (pair a1 a2 e1 e2) (e/pair e1' e2')
+    <- erase _ e1 e1'
+    <- erase _ e2 e2'.
+- : {a1} {a2} {e} {e'}
+  erase _ (fst a1 a2 e) (e/fst e')
+    <- erase _ e e'.
+- : {a1} {a2} {e} {e'}
+  erase _ (snd a1 a2 e) (e/snd e')
+    <- erase _ e e'.
+
+- : {a1} {a2} {e} {e'}
+  erase _ (lam a1 a2 e) (e/lam a1 e')
+    <- ({x} {x'} erase _ x x' -> erase _ (e x) (e' x')).
+- : {a1} {a2} {e1} {e1'} {e2} {e2'}
+  erase _ (app a1 a2 e1 e2) (e/app e1' e2')
+    <- erase _ e1 e1'
+    <- erase _ e2 e2'.
+
+- : {a1} {a2} {e} {e'}
+  erase _ (inl a1 a2 e) (e/inl e')
+    <- erase _ e e'.
+- : {a1} {a2} {e} {e'}
+  erase _ (inr a1 a2 e) (e/inr e')
+    <- erase _ e e'.
+- : {a1} {a2} {a} {e} {e'} {e1} {e1'} {e2} {e2'}
+  erase a (case a1 a2 a e e1 e2) (e/case e' e1' e2')
+    <- erase _ e e'
+    <- ({x1} {x1'} erase _ x1 x1' -> erase _ (e1 x1) (e1' x1'))
+    <- ({x2} {x2'} erase _ x2 x2' -> erase _ (e2 x2) (e2' x2')).
+
+- : {tau} {e} {e'}
+  erase _ (fold tau e) (e/fold tau e')
+    <- erase _ e e'.
+- : {tau} {a} {e} {e'} {e1} {e1'}
+  erase _ (rec tau a e e1) (e/rec e' e1')
+    <- erase _ e e'
+    <- ({x} {x'} erase _ x x' -> erase _ (e1 x) (e1' x')).
+
+- : {tau} {a} {e} {e'} {e1} {e1'}
+  erase _ (gen tau a e e1) (e/gen tau e' e1')
+    <- erase _ e e'
+    <- ({x} {x'} erase _ x x' -> erase _ (e1 x) (e1' x')).
+- : {tau} {e} {e'}
+  erase _ (unfold tau e) (e/unfold e')
+    <- erase _ e e'.
+
+%block e : some {a : ty} block {x : el a} {x' : exp} {- : erase a x x'}.
+%worlds (e) (erase _ _ _).
+%unique erase +A +E -E'.
+%mode erase +A +E -E'.
+%total E (erase _ E _).

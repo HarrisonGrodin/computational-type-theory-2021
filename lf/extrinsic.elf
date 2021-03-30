@@ -1,0 +1,24 @@
+exp : type.
+
+
+e/null : exp.
+
+e/yes : exp.
+e/no : exp.
+
+e/pair : exp -> exp -> exp.
+e/fst : exp -> exp.
+e/snd : exp -> exp.
+
+e/lam : ty -> (exp -> exp) -> exp.
+e/app : exp -> exp -> exp.
+
+e/inl : exp -> exp.
+e/inr : exp -> exp.
+e/case : exp -> (exp -> exp) -> (exp -> exp) -> exp.
+
+e/fold : (ty -> ty) -> exp -> exp.
+e/rec : exp -> (exp -> exp) -> exp.
+
+e/gen : (ty -> ty) -> exp -> (exp -> exp) -> exp.
+e/unfold : exp -> exp.

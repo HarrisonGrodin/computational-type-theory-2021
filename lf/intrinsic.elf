@@ -1,0 +1,32 @@
+ty : type.
+el : ty -> type.
+
+
+one : ty.
+null : el one.
+
+two : ty.
+yes : el two.
+no : el two.
+
+prod : ty -> ty -> ty.
+pair : {a1} {a2} el a1 -> el a2 -> el (prod a1 a2).
+fst : {a1} {a2} el (prod a1 a2) -> el a1.
+snd : {a1} {a2} el (prod a1 a2) -> el a2.
+
+arrow : ty -> ty -> ty.
+lam : {a1} {a2} (el a1 -> el a2) -> el (arrow a1 a2).
+app : {a1} {a2} el (arrow a1 a2) -> el a1 -> el a2.
+
+sum : ty -> ty -> ty.
+inl : {a1} {a2} el a1 -> el (sum a1 a2).
+inr : {a1} {a2} el a2 -> el (sum a1 a2).
+case : {a1} {a2} {a} el (sum a1 a2) -> (el a1 -> el a) -> (el a2 -> el a) -> el a.
+
+ind : (ty -> ty) -> ty.
+fold : {tau} el (tau (ind tau)) -> el (ind tau).
+rec : {tau} {a} el (ind tau) -> (el (tau a) -> el a) -> el a.
+
+coi : (ty -> ty) -> ty.
+gen : {tau} {a} el a -> (el a -> el (tau a)) -> el (coi tau).
+unfold : {tau} el (coi tau) -> el (tau (coi tau)).
