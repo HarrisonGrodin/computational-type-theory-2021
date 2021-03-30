@@ -24,6 +24,10 @@ erase : {a} el a -> exp -> type.
     <- erase _ e1 e1'
     <- erase _ e2 e2'.
 
+- : {a} {e} {e'}
+  erase _ (absurd a e) (e/absurd e')
+    <- erase _ e e'.
+
 - : {a1} {a2} {e} {e'}
   erase _ (inl a1 a2 e) (e/inl e')
     <- erase _ e e'.

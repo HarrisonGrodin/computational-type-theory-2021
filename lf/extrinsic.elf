@@ -13,6 +13,8 @@ e/snd : exp -> exp.
 e/lam : ty -> (exp -> exp) -> exp.
 e/app : exp -> exp -> exp.
 
+e/absurd : exp -> exp.
+
 e/inl : exp -> exp.
 e/inr : exp -> exp.
 e/case : exp -> (exp -> exp) -> (exp -> exp) -> exp.

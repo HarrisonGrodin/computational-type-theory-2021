@@ -18,6 +18,9 @@ arrow : ty -> ty -> ty.
 lam : {a1} {a2} (el a1 -> el a2) -> el (arrow a1 a2).
 app : {a1} {a2} el (arrow a1 a2) -> el a1 -> el a2.
 
+void : ty.
+absurd : {a} el void -> el a.
+
 sum : ty -> ty -> ty.
 inl : {a1} {a2} el a1 -> el (sum a1 a2).
 inr : {a1} {a2} el a2 -> el (sum a1 a2).
