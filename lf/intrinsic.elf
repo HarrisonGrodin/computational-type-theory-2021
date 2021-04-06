@@ -1,45 +1,46 @@
 ty : type.
 el : ty -> type.
 
+pos : (ty -> ty) -> type.
+- : pos ([t] t).
+
 
 one : ty.
+- : pos ([_] one).
 null : el one.
 
 two : ty.
+- : pos ([_] two).
 yes : el two.
 no : el two.
 
 prod : ty -> ty -> ty.
+- : {tau1} {tau2} pos tau1 -> pos tau2 -> pos ([t] prod (tau1 t) (tau2 t)).
 pair : {a1} {a2} el a1 -> el a2 -> el (prod a1 a2).
 fst : {a1} {a2} el (prod a1 a2) -> el a1.
 snd : {a1} {a2} el (prod a1 a2) -> el a2.
 
 arrow : ty -> ty -> ty.
+- : {tau1} {tau2} pos tau2 -> pos ([t] arrow tau1 (tau2 t)).
 lam : {a1} {a2} (el a1 -> el a2) -> el (arrow a1 a2).
 app : {a1} {a2} el (arrow a1 a2) -> el a1 -> el a2.
 
 void : ty.
+- : pos ([_] void).
 absurd : {a} el void -> el a.
 
 sum : ty -> ty -> ty.
+- : {tau1} {tau2} pos tau1 -> pos tau2 -> pos ([t] sum (tau1 t) (tau2 t)).
 inl : {a1} {a2} el a1 -> el (sum a1 a2).
 inr : {a1} {a2} el a2 -> el (sum a1 a2).
 case : {a1} {a2} {a} el (sum a1 a2) -> (el a1 -> el a) -> (el a2 -> el a) -> el a.
 
-
-pos : (ty -> ty) -> type.
-- : pos ([t] t).
-- : pos ([_] one).
-- : {tau1} {tau2} pos tau1 -> pos tau2 -> pos ([t] prod (tau1 t) (tau2 t)).
-- : pos ([_] void).
-- : {tau1} {tau2} pos tau1 -> pos tau2 -> pos ([t] sum (tau1 t) (tau2 t)).
-- : {tau1} {tau2} pos tau2 -> pos ([t] arrow tau1 (tau2 t)).
-
-
 ind : {tau : ty -> ty} pos tau -> ty.
+- : {tau} {p} pos ([t] ind (tau t) (p t)).
 fold : {tau} {p} el (tau (ind tau p)) -> el (ind tau p).
 rec : {tau} {p} {a} el (ind tau p) -> (el (tau a) -> el a) -> el a.
 
 coi : {tau : ty -> ty} pos tau -> ty.
+- : {tau} {p} pos ([t] coi (tau t) (p t)).
 gen : {tau} {p} {a} el a -> (el a -> el (tau a)) -> el (coi tau p).
 unfold : {tau} {p} el (coi tau p) -> el (tau (coi tau p)).
