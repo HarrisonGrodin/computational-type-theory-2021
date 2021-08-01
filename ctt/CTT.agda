@@ -1,3 +1,5 @@
+-- Formalization of OPLSS: Computational Type Theory (Robert Harper), 2018.
+
 module CTT where
 
 open import Level
