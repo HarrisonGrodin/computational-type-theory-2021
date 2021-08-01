@@ -241,3 +241,6 @@ module Example1 where
   fact/·1 : {A₁ A₂ M : exp} → (A₁ × A₂) ∋ M → A₁ ∋ (M ·1)
   fact/·1 {A₁ = A₁} (⇓ M⇓⟨M₁,M₂⟩ ,⇓ M⇓⟨M₁',M₂'⟩ , (A₁∋M₁≐M₁' × A₂∋M₂≐M₂')) =
     rev-closure* (stepʳ (lift-principal _·1 _·1/principal (_⇓_.M↦*M' M⇓⟨M₁,M₂⟩)) _·1) (per-refl (A∋≐-isPartialEquivalence A₁) A₁∋M₁≐M₁')
+
+  fact/⟨,⟩·1 : {A₁ M₁ M₂ : exp} → A₁ ∋ M₁ → A₁ ∋ ⟨ M₁ , M₂ ⟩ ·1 ≐ M₁
+  fact/⟨,⟩·1 (⇓ M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ) = ⇓ step⇓ _·1 M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ
