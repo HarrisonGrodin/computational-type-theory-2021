@@ -2,6 +2,7 @@
 
 module CTT where
 
+open import Function using (_$_)
 open import Level
 open import Relation.Nullary
 open import Relation.Nullary.Negation
@@ -161,7 +162,15 @@ module Example1 where
         trans Bool Bool = Bool
         trans (h₁ × h₂) (h₁' × h₂') = trans h₁ h₁' × trans h₂ h₂'
 
+    ≐type-isPartialEquivalence : IsPartialEquivalence (_≐_type)
+    ≐type-isPartialEquivalence = {!   !}
+
+    rev-closure-type : {A A' A'' : exp} → A ↦ A' → A' ≐ A'' type → A ≐ A'' type
+    rev-closure-type A↦A' (⇓ A'⇓Aᵒ ,⇓ A''⇓A'ᵒ , Aᵒ≐A'ᵒtypeᵒ) = ⇓ (step⇓ A↦A' A'⇓Aᵒ) ,⇓ A''⇓A'ᵒ , Aᵒ≐A'ᵒtypeᵒ
+
   module Membership where
+    open Type
+
     data R/Bool : exp → exp → Set where
       tt : R/Bool tt tt
       ff : R/Bool ff ff
@@ -219,12 +228,22 @@ module Example1 where
 
     -- Lemmas
 
-    rev-closure : {A M M' : exp} → M ↦ M' → A ∋ M' → A ∋ M
-    rev-closure M↦M' (⇓ if⇓Mᵒ ,⇓ if⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ step⇓ M↦M' if⇓Mᵒ ,⇓ step⇓ M↦M' if⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ
+    lemma/move : {A A' M : exp} → A ≐ A' type → A ∋ M → A' ∋ M
+    lemma/move A≐A'type (⇓ M⇓Mᵒ ,⇓ M⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = {!   !}
 
-    rev-closure* : {A M M' : exp} → M ↦* M' → A ∋ M' → A ∋ M
-    rev-closure* here A∋M' = A∋M'
-    rev-closure* (step M↦M'' M''↦*M') A∋M' = rev-closure M↦M'' (rev-closure* M''↦*M' A∋M')
+    rev-closure-A : {A A' M : exp} → A ↦ A' → A' ∋ M → A ∋ M
+    rev-closure-A A↦A' A'∋M = lemma/move (IsPartialEquivalence.sym ≐type-isPartialEquivalence (rev-closure-type A↦A' {!   !})) A'∋M
+
+    rev-closure-A* : {A A' M : exp} → A ↦* A' → A' ∋ M → A ∋ M
+    rev-closure-A* here A'∋M = A'∋M
+    rev-closure-A* (step A↦A'' A''↦*A') A'∋M = rev-closure-A A↦A'' (rev-closure-A* A''↦*A' A'∋M)
+
+    rev-closure-M : {A M M' : exp} → M ↦ M' → A ∋ M' → A ∋ M
+    rev-closure-M M↦M' (⇓ M'⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ step⇓ M↦M' M'⇓Mᵒ ,⇓ step⇓ M↦M' M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ
+
+    rev-closure-M* : {A M M' : exp} → M ↦* M' → A ∋ M' → A ∋ M
+    rev-closure-M* here A∋M' = A∋M'
+    rev-closure-M* (step M↦M'' M''↦*M') A∋M' = rev-closure-M M↦M'' (rev-closure-M* M''↦*M' A∋M')
 
     lift-principal : (f : exp → exp) → ({M M' : exp} → M ↦ M' → f M ↦ f M') → {M M' : exp} → M ↦* M' → f M ↦* f M'
     lift-principal f h here = here
@@ -237,12 +256,22 @@ module Example1 where
   -- Facts
 
   fact/if : {A M M₁ M₀ M₁' M₀' : exp} → Bool ∋ M → A ∋ M₁ → A ∋ M₀ → A ∋ if M M₁ M₀
-  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool tt) h₁ h₀ = rev-closure* (stepʳ (lift-principal (λ M → if M M₁ M₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/tt M₁ M₀)) h₁
-  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool ff) h₁ h₀ = rev-closure* (stepʳ (lift-principal (λ M → if M M₁ M₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/ff M₁ M₀)) h₀
+  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool tt) h₁ h₀ = rev-closure-M* (stepʳ (lift-principal (λ M → if M M₁ M₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/tt M₁ M₀)) h₁
+  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool ff) h₁ h₀ = rev-closure-M* (stepʳ (lift-principal (λ M → if M M₁ M₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/ff M₁ M₀)) h₀
+
+  fact/if' : {M A₁ A₀ M₁ M₀ : exp} → Bool ∋ M → A₁ ∋ M₁ → A₀ ∋ M₀ → if M A₁ A₀ ∋ if M M₁ M₀
+  fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool tt) h₁ h₀ =
+    rev-closure-A* (stepʳ (lift-principal (λ M → if M A₁ A₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/tt A₁ A₀)) $
+    rev-closure-M* (stepʳ (lift-principal (λ M → if M M₁ M₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/tt M₁ M₀)) $
+    h₁
+  fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool ff) h₁ h₀ =
+    rev-closure-A* (stepʳ (lift-principal (λ M → if M A₁ A₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/ff A₁ A₀)) $
+    rev-closure-M* (stepʳ (lift-principal (λ M → if M M₁ M₀) if/principal (_⇓_.M↦*M' M'⇓M'ᵒ)) (if/ff M₁ M₀)) $
+    h₀
 
   fact/·1 : {A₁ A₂ M : exp} → (A₁ × A₂) ∋ M → A₁ ∋ (M ·1)
   fact/·1 {A₁ = A₁} (⇓ M⇓⟨M₁,M₂⟩ ,⇓ M⇓⟨M₁',M₂'⟩ , (A₁∋M₁≐M₁' × A₂∋M₂≐M₂')) =
-    rev-closure* (stepʳ (lift-principal _·1 _·1/principal (_⇓_.M↦*M' M⇓⟨M₁,M₂⟩)) _·1) (per-refl (A∋≐-isPartialEquivalence A₁) A₁∋M₁≐M₁')
+    rev-closure-M* (stepʳ (lift-principal _·1 _·1/principal (_⇓_.M↦*M' M⇓⟨M₁,M₂⟩)) _·1) (per-refl (A∋≐-isPartialEquivalence A₁) A₁∋M₁≐M₁')
 
   fact/⟨,⟩·1 : {A₁ M₁ M₂ : exp} → A₁ ∋ M₁ → A₁ ∋ ⟨ M₁ , M₂ ⟩ ·1 ≐ M₁
   fact/⟨,⟩·1 (⇓ M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ) = ⇓ step⇓ _·1 M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ
