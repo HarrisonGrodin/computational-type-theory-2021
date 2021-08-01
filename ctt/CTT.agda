@@ -1,9 +1,11 @@
+{-# OPTIONS --no-positivity-check #-}
+
 -- Formalization of OPLSS: Computational Type Theory (Robert Harper), 2018.
 
 module CTT where
 
 open import Function using (_$_)
-open import Level
+open import Level using (Level)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open import Relation.Binary
@@ -76,6 +78,10 @@ module Example1 where
     Bool : exp
     tt ff : exp
     if : exp → exp → exp → exp
+    Nat : exp
+    zero : exp
+    succ : exp → exp
+    rec : exp → (exp → exp) → exp → exp
     _×_ : exp → exp → exp
     ⟨_,_⟩ : exp → exp → exp
     _·1 : exp → exp
@@ -86,6 +92,9 @@ module Example1 where
     Bool : Bool val
     tt : tt val
     ff : ff val
+    Nat : Nat val
+    zero : zero val
+    succ : {M : exp} → succ M val
     _×_ : {A₁ A₂ : exp} → A₁ val → A₂ val → (A₁ × A₂) val
     ⟨_,_⟩ : {M₁ M₂ : exp} → ⟨ M₁ , M₂ ⟩ val
 
@@ -94,6 +103,9 @@ module Example1 where
     if/principal : {M M' M₁ M₀ : exp} → M ↦ M' → if M M₁ M₀ ↦ if M' M₁ M₀
     if/tt : (M₁ M₀ : exp) → if tt M₁ M₀ ↦ M₁
     if/ff : (M₁ M₀ : exp) → if ff M₁ M₀ ↦ M₀
+    rec/principal : ∀ {M M' M₀ M₁} → M ↦ M' → rec M₀ M₁ M ↦ rec M₀ M₁ M'
+    rec/zero : ∀ {M₀ M₁} → rec M₀ M₁ zero ↦ M₀
+    rec/succ : ∀ {M M₀ M₁} → rec M₀ M₁ (succ M) ↦ M₁ (rec M₀ M₁ M)
     _·1/principal : {M M' : exp} → M ↦ M' → M ·1 ↦ M' ·1
     _·1 : {M₁ M₂ : exp} → ⟨ M₁ , M₂ ⟩ ·1 ↦ M₁
     _·2/principal : {M M' : exp} → M ↦ M' → M ·2 ↦ M' ·2
@@ -104,6 +116,10 @@ module Example1 where
   ... | refl = refl
   ↦-deterministic (if/tt _ M₀) (if/tt _ .M₀) = refl
   ↦-deterministic (if/ff M₁ _) (if/ff .M₁ _) = refl
+  ↦-deterministic (rec/principal h) (rec/principal h') with ↦-deterministic h h'
+  ... | refl = refl
+  ↦-deterministic rec/zero rec/zero = refl
+  ↦-deterministic rec/succ rec/succ = refl
   ↦-deterministic (h ·1/principal) (h' ·1/principal) with ↦-deterministic h h'
   ... | refl = refl
   ↦-deterministic _·1 _·1 = refl
@@ -131,6 +147,7 @@ module Example1 where
   module Type where
     data _≐_typeᵒ : exp → exp → Set where
       Bool : Bool ≐ Bool typeᵒ
+      Nat : Nat ≐ Nat typeᵒ
       _×_ : {A₁ A₁' A₂ A₂' : exp} →
         A₁ ≐ A₁' typeᵒ →
         A₂ ≐ A₂' typeᵒ →
@@ -153,10 +170,12 @@ module Example1 where
 
     ≐typeᵒ-sym : Symmetric _≐_typeᵒ
     ≐typeᵒ-sym Bool = Bool
+    ≐typeᵒ-sym Nat = Nat
     ≐typeᵒ-sym (h₁ × h₂) = ≐typeᵒ-sym h₁ × ≐typeᵒ-sym h₂
 
     ≐typeᵒ-trans : Transitive _≐_typeᵒ
     ≐typeᵒ-trans Bool Bool = Bool
+    ≐typeᵒ-trans Nat Nat = Nat
     ≐typeᵒ-trans (h₁ × h₂) (h₁' × h₂') = ≐typeᵒ-trans h₁ h₁' × ≐typeᵒ-trans h₂ h₂'
 
     ≐typeᵒ-isPartialEquivalence : IsPartialEquivalence (_≐_typeᵒ)
@@ -194,6 +213,23 @@ module Example1 where
     R/Bool-isPartialEquivalence : IsPartialEquivalence R/Bool
     R/Bool-isPartialEquivalence = record { sym = R/Bool-sym ; trans = R/Bool-trans }
 
+    data R/Nat : exp → exp → Set where
+      zero : {M M' : exp} → M ⇓ zero → M' ⇓ zero → R/Nat M M'
+      succ : {M M' N N' : exp} → M ⇓ succ N → M' ⇓ succ N' → R/Nat N N' → R/Nat M M'
+
+    R/Nat-sym : Symmetric R/Nat
+    R/Nat-sym (zero h h') = zero h' h
+    R/Nat-sym (succ h h' r) = succ h' h (R/Nat-sym r)
+
+    R/Nat-trans : Transitive R/Nat
+    R/Nat-trans (zero h _) (zero _ h') = zero h h'
+    R/Nat-trans (zero _ h₁) (succ h₁' _ _) with ⇓-deterministic h₁ h₁'
+    ... | ()
+    R/Nat-trans (succ _ h₁ _) (zero h₁' _)  with ⇓-deterministic h₁ h₁'
+    ... | ()
+    R/Nat-trans (succ h h₁ r) (succ h₁' h' r') with ⇓-deterministic h₁ h₁'
+    ... | refl = succ h h' (R/Nat-trans r r')
+
     data _∋ᵒ_≐_ : (A : exp) → exp → exp → Set
     record _∋_≐_ (A : exp) (M M' : exp) : Set
 
@@ -207,6 +243,7 @@ module Example1 where
 
     data _∋ᵒ_≐_ where
       Bool : {M M' : exp} → R/Bool M M' → Bool ∋ᵒ M ≐ M'
+      Nat : {M M' : exp} → R/Nat M M' → Nat ∋ᵒ M ≐ M'
       _×_ : {A₁ A₂ M₁ M₂ M₁' M₂' : exp} →
         A₁ ∋ M₁ ≐ M₁' →
         A₂ ∋ M₂ ≐ M₂' →
@@ -216,9 +253,11 @@ module Example1 where
     A ∋ᵒ M = A ∋ᵒ M ≐ M
 
     A∋ᵒ≐-sym (Bool h) = Bool (R/Bool-sym h)
+    A∋ᵒ≐-sym (Nat h) = Nat (R/Nat-sym h)
     A∋ᵒ≐-sym (h₁ × h₂) = A∋≐-sym h₁ × A∋≐-sym h₂
 
     A∋ᵒ≐-trans (Bool h) (Bool h') = Bool (R/Bool-trans h h')
+    A∋ᵒ≐-trans (Nat h) (Nat h') = Nat (R/Nat-trans h h')
     A∋ᵒ≐-trans (h₁ × h₂) (h₁' × h₂') = A∋≐-trans h₁ h₁' × A∋≐-trans h₂ h₂'
 
     A∋ᵒ≐-isPartialEquivalence A = record { sym = A∋ᵒ≐-sym ; trans = A∋ᵒ≐-trans }
