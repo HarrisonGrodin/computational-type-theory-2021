@@ -213,7 +213,7 @@ module Example1 where
   _type : exp → Set
   A type = A ≐ A type
 
-  ⇓_,⇓-,_ : {A Aᵒ : exp} → (A⇓Aᵒ : A ⇓ Aᵒ) (Aᵒtypeᵒ : Aᵒ typeᵒ) → A type
+  ⇓_,⇓-,_ : {A Aᵒ : exp} (A⇓Aᵒ : A ⇓ Aᵒ) (Aᵒtypeᵒ : Aᵒ typeᵒ) → A type
   ⇓ A⇓Aᵒ ,⇓-, Aᵒtypeᵒ = ⇓ A⇓Aᵒ ,⇓ A⇓Aᵒ , Aᵒtypeᵒ
 
   ≐typeᵒ-sym Bool = Bool
@@ -344,10 +344,13 @@ module Example1 where
   _∋_ : (A : exp) → exp → Set
   A ∋ M = A ∋ M ≐ M
 
+  ⇓_,⇓_,⇓-,_ : {A Aᵒ M Mᵒ : exp} (A⇓Aᵒ : A ⇓ Aᵒ) (M⇓Mᵒ : M ⇓ Mᵒ) (Aᵒ∋ᵒMᵒ : Aᵒ ∋ᵒ Mᵒ) → A ∋ M
+  ⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓-, Aᵒ∋ᵒMᵒ = ⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M⇓Mᵒ , Aᵒ∋ᵒMᵒ
+
   A∋≐-sym {A} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ M'⇓M'ᵒ ,⇓ M⇓Mᵒ , A∋ᵒ≐-sym A∋ᵒMᵒ≐M'ᵒ
 
   A∋≐-trans {A} {M₀} {M₁} {M₂} (⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₁⇓ , A∋ᵒMᵒ≐M'ᵒ₁) (⇓ A⇓' ,⇓ M₁⇓' ,⇓ M₂⇓ , A∋ᵒM'ᵒ₁≐M'ᵒ) with ⇓-deterministic A⇓ A⇓' | ⇓-deterministic M₁⇓ M₁⇓'
-  ... | refl | refl = ⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₂⇓ , (A∋ᵒ≐-trans A∋ᵒMᵒ≐M'ᵒ₁ A∋ᵒM'ᵒ₁≐M'ᵒ)
+  ... | refl | refl = ⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₂⇓ , A∋ᵒ≐-trans A∋ᵒMᵒ≐M'ᵒ₁ A∋ᵒM'ᵒ₁≐M'ᵒ
 
   A∋≐-isPartialEquivalence A = record { sym = A∋≐-sym ; trans = A∋≐-trans }
 
@@ -454,9 +457,12 @@ module Example1 where
 
   fact/id/inhabited : Id Nat (succ zero) (succ zero) ∋ refl
   fact/id/inhabited =
-    ⇓ val⇓ Id ,⇓ val⇓ refl ,⇓ val⇓ refl ,
+    ⇓ val⇓ Id ,⇓ val⇓ refl ,⇓-,
       Id (refl (val⇓ refl) (val⇓ refl)) (
-        ⇓ val⇓ Nat ,⇓ val⇓ succ ,⇓ val⇓ succ , (
+        ⇓ val⇓ Nat ,⇓ val⇓ succ ,⇓-, (
           Nat (succ (val⇓ succ) (val⇓ succ) (zero (val⇓ zero) (val⇓ zero)))
         )
       )
+
+  fact/id/reflexive : {A M : exp} → A ∋ M → Id A M M ∋ refl
+  fact/id/reflexive A∋M = ⇓ val⇓ Id ,⇓ val⇓ refl ,⇓-, Id (refl (val⇓ refl) (val⇓ refl)) A∋M
