@@ -4,12 +4,12 @@
 
 module CTT where
 
-open import Function using (_$_; _∘_)
+open import Function using (_$_)
 open import Level using (Level)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as Eq using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 open import Data.Product renaming (_×_ to _∧_)
 
 private
@@ -93,6 +93,8 @@ module Example1 where
     ⟨_,_⟩ : exp → exp → exp
     _·1 : exp → exp
     _·2 : exp → exp
+    Id : exp → exp → exp → exp
+    refl : exp
 
 
   data _val : exp → Set where
@@ -104,6 +106,8 @@ module Example1 where
     succ : {M : exp} → succ M val
     _×_ : {A₁ A₂ : exp} → A₁ val → A₂ val → (A₁ × A₂) val
     ⟨_,_⟩ : {M₁ M₂ : exp} → ⟨ M₁ , M₂ ⟩ val
+    Id : {A M₁ M₂ : exp} → Id A M₁ M₂ val
+    refl : refl val
 
   infix 3 _↦_
   data _↦_ : exp → exp → Set where
@@ -150,194 +154,230 @@ module Example1 where
       ; ↦-deterministic = ↦-deterministic
       }
 
+  -- Type Signatures
 
-  module Type where
-    data _≐_typeᵒ : exp → exp → Set where
-      Bool : Bool ≐ Bool typeᵒ
-      Nat : Nat ≐ Nat typeᵒ
-      _×_ : {A₁ A₁' A₂ A₂' : exp} →
-        A₁ ≐ A₁' typeᵒ →
-        A₂ ≐ A₂' typeᵒ →
-        (A₁ × A₂) ≐ (A₁' × A₂') typeᵒ
+  data _≐_typeᵒ : exp → exp → Set
+  record _≐_type (A A' : exp) : Set
 
-    _typeᵒ : exp → Set
-    A typeᵒ = A ≐ A typeᵒ
+  ≐typeᵒ-sym : Symmetric _≐_typeᵒ
+  ≐typeᵒ-trans : Transitive _≐_typeᵒ
+  ≐typeᵒ-isPartialEquivalence : IsPartialEquivalence (_≐_typeᵒ)
 
-    record _≐_type (A A' : exp) : Set where
-      constructor ⇓_,⇓_,_
-      field
-        {Aᵒ} : exp
-        A⇓Aᵒ : A ⇓ Aᵒ
-        {A'ᵒ} : exp
-        A'⇓A'ᵒ : A' ⇓ A'ᵒ
-        Aᵒ≐A'ᵒtypeᵒ : Aᵒ ≐ A'ᵒ typeᵒ
+  ≐type-sym : Symmetric _≐_type
+  ≐type-trans : Transitive _≐_type
+  ≐type-isPartialEquivalence : IsPartialEquivalence (_≐_type)
 
-    _type : exp → Set
-    A type = A ≐ A type
+  data _∋ᵒ_≐_ : (A : exp) → exp → exp → Set
+  record _∋_≐_ (A : exp) (M M' : exp) : Set
 
-    ≐typeᵒ-sym : Symmetric _≐_typeᵒ
-    ≐typeᵒ-sym Bool = Bool
-    ≐typeᵒ-sym Nat = Nat
-    ≐typeᵒ-sym (h₁ × h₂) = ≐typeᵒ-sym h₁ × ≐typeᵒ-sym h₂
+  A∋ᵒ≐-sym : {A : exp} → Symmetric (A ∋ᵒ_≐_)
+  A∋ᵒ≐-trans : {A : exp} → Transitive (A ∋ᵒ_≐_)
+  A∋ᵒ≐-isPartialEquivalence : (A : exp) → IsPartialEquivalence (A ∋ᵒ_≐_)
 
-    ≐typeᵒ-trans : Transitive _≐_typeᵒ
-    ≐typeᵒ-trans Bool Bool = Bool
-    ≐typeᵒ-trans Nat Nat = Nat
-    ≐typeᵒ-trans (h₁ × h₂) (h₁' × h₂') = ≐typeᵒ-trans h₁ h₁' × ≐typeᵒ-trans h₂ h₂'
+  A∋≐-sym : {A : exp} → Symmetric (A ∋_≐_)
+  A∋≐-trans : {A : exp} → Transitive (A ∋_≐_)
+  A∋≐-isPartialEquivalence : (A : exp) → IsPartialEquivalence (A ∋_≐_)
 
-    ≐typeᵒ-isPartialEquivalence : IsPartialEquivalence (_≐_typeᵒ)
-    ≐typeᵒ-isPartialEquivalence = record { sym = ≐typeᵒ-sym ; trans = ≐typeᵒ-trans }
+  lemma/moveᵒ : {A A' M₁ M₂ : exp} → A ≐ A' typeᵒ → A' ∋ᵒ M₁ ≐ M₂ → A ∋ᵒ M₁ ≐ M₂
+  lemma/move : {A A' M₁ M₂ : exp} → A ≐ A' type → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
 
-    ≐type-sym : Symmetric _≐_type
-    ≐type-sym (⇓ A⇓Aᵒ ,⇓ A'⇓A'ᵒ , Aᵒ≐A'ᵒtypeᵒ) = ⇓ A'⇓A'ᵒ ,⇓ A⇓Aᵒ , (≐typeᵒ-sym Aᵒ≐A'ᵒtypeᵒ)
+  -- Implementations
 
-    ≐type-trans : Transitive _≐_type
-    ≐type-trans {A₀} {A₁} {A₂} (⇓ A₀⇓ ,⇓ A₁⇓ , Aᵒ≐A'ᵒtypeᵒ) (⇓ A₁⇓' ,⇓ A₂⇓ , Aᵒ₁≐A'ᵒ₁typeᵒ) with ⇓-deterministic A₁⇓ A₁⇓'
-    ... | refl = ⇓ A₀⇓ ,⇓ A₂⇓ , ≐typeᵒ-trans Aᵒ≐A'ᵒtypeᵒ Aᵒ₁≐A'ᵒ₁typeᵒ
+  data _≐_typeᵒ where
+    Bool : Bool ≐ Bool typeᵒ
+    Nat : Nat ≐ Nat typeᵒ
+    _×_ : {A₁ A₁' A₂ A₂' : exp} →
+      A₁ ≐ A₁' typeᵒ →
+      A₂ ≐ A₂' typeᵒ →
+      (A₁ × A₂) ≐ (A₁' × A₂') typeᵒ
+    Id : {A A' M₁ M₁' M₂ M₂' : exp} →
+      A ≐ A' type →
+      A ∋ M₁ ≐ M₁' →
+      A ∋ M₂ ≐ M₂' →
+      Id A M₁ M₂ ≐ Id A' M₁' M₂' typeᵒ
 
-    ≐type-isPartialEquivalence : IsPartialEquivalence (_≐_type)
-    ≐type-isPartialEquivalence = record { sym = ≐type-sym ; trans = ≐type-trans }
+  _typeᵒ : exp → Set
+  A typeᵒ = A ≐ A typeᵒ
 
-    typeᵒ-val : {A A' : exp} → A ≐ A' typeᵒ → A val
-    typeᵒ-val Bool = Bool
-    typeᵒ-val Nat = Nat
-    typeᵒ-val (h₁ × h₂) = typeᵒ-val h₁ × typeᵒ-val h₂
+  record _≐_type A A' where
+    constructor ⇓_,⇓_,_
+    pattern
+    inductive
+    field
+      {Aᵒ} : exp
+      A⇓Aᵒ : A ⇓ Aᵒ
+      {A'ᵒ} : exp
+      A'⇓A'ᵒ : A' ⇓ A'ᵒ
+      Aᵒ≐A'ᵒtypeᵒ : Aᵒ ≐ A'ᵒ typeᵒ
 
-    typeᵒ-val' : {A A' : exp} → A ≐ A' typeᵒ → A' val
-    typeᵒ-val' = typeᵒ-val ∘ ≐typeᵒ-sym
+  _type : exp → Set
+  A type = A ≐ A type
 
-    typeᵒ-type : {A A' : exp} → A ≐ A' typeᵒ → A ≐ A' type
-    typeᵒ-type A≐A'typeᵒ = ⇓ (val⇓ (typeᵒ-val A≐A'typeᵒ)) ,⇓ (val⇓ (typeᵒ-val' A≐A'typeᵒ)) , A≐A'typeᵒ
+  ⇓_,⇓-,_ : {A Aᵒ : exp} → (A⇓Aᵒ : A ⇓ Aᵒ) (Aᵒtypeᵒ : Aᵒ typeᵒ) → A type
+  ⇓ A⇓Aᵒ ,⇓-, Aᵒtypeᵒ = ⇓ A⇓Aᵒ ,⇓ A⇓Aᵒ , Aᵒtypeᵒ
 
-  module Membership where
-    open Type
+  ≐typeᵒ-sym Bool = Bool
+  ≐typeᵒ-sym Nat = Nat
+  ≐typeᵒ-sym (h₁ × h₂) = ≐typeᵒ-sym h₁ × ≐typeᵒ-sym h₂
+  ≐typeᵒ-sym (Id h h₁ h₂) = Id (≐type-sym h) (A∋≐-sym (lemma/move (≐type-sym h) h₁)) (A∋≐-sym (lemma/move (≐type-sym h) h₂))
 
-    data R/Bool : exp → exp → Set where
-      tt : {M M' : exp} → M ⇓ tt → M' ⇓ tt → R/Bool M M'
-      ff : {M M' : exp} → M ⇓ ff → M' ⇓ ff → R/Bool M M'
+  ≐typeᵒ-trans Bool Bool = Bool
+  ≐typeᵒ-trans Nat Nat = Nat
+  ≐typeᵒ-trans (h₁ × h₂) (h₁' × h₂') = ≐typeᵒ-trans h₁ h₁' × ≐typeᵒ-trans h₂ h₂'
+  ≐typeᵒ-trans (Id h h₁ h₂) (Id h' h₁' h₂') = Id (≐type-trans h h') (A∋≐-trans h₁ (lemma/move h h₁')) (A∋≐-trans h₂ (lemma/move h h₂'))
 
-    R/Bool-sym : Symmetric R/Bool
-    R/Bool-sym (tt h h') = tt h' h
-    R/Bool-sym (ff h h') = ff h' h
+  ≐typeᵒ-isPartialEquivalence = record { sym = ≐typeᵒ-sym ; trans = ≐typeᵒ-trans }
 
-    R/Bool-trans : Transitive R/Bool
-    R/Bool-trans (tt h _) (tt _ h') = tt h h'
-    R/Bool-trans (tt _ h) (ff h' _) with ⇓-deterministic h h'
-    ... | ()
-    R/Bool-trans (ff _ h) (tt h' _) with ⇓-deterministic h h'
-    ... | ()
-    R/Bool-trans (ff h _) (ff _ h') = ff h h'
+  ≐type-sym (⇓ A⇓Aᵒ ,⇓ A'⇓A'ᵒ , Aᵒ≐A'ᵒtypeᵒ) = ⇓ A'⇓A'ᵒ ,⇓ A⇓Aᵒ , (≐typeᵒ-sym Aᵒ≐A'ᵒtypeᵒ)
 
-    R/Bool-isPartialEquivalence : IsPartialEquivalence R/Bool
-    R/Bool-isPartialEquivalence = record { sym = R/Bool-sym ; trans = R/Bool-trans }
+  ≐type-trans {A₀} {A₁} {A₂} (⇓ A₀⇓ ,⇓ A₁⇓ , Aᵒ≐A'ᵒtypeᵒ) (⇓ A₁⇓' ,⇓ A₂⇓ , Aᵒ₁≐A'ᵒ₁typeᵒ) with ⇓-deterministic A₁⇓ A₁⇓'
+  ... | refl = ⇓ A₀⇓ ,⇓ A₂⇓ , ≐typeᵒ-trans Aᵒ≐A'ᵒtypeᵒ Aᵒ₁≐A'ᵒ₁typeᵒ
 
-    data R/Nat : exp → exp → Set where
-      zero : {M M' : exp} → M ⇓ zero → M' ⇓ zero → R/Nat M M'
-      succ : {M M' N N' : exp} → M ⇓ succ N → M' ⇓ succ N' → R/Nat N N' → R/Nat M M'
+  ≐type-isPartialEquivalence = record { sym = ≐type-sym ; trans = ≐type-trans }
 
-    R/Nat-sym : Symmetric R/Nat
-    R/Nat-sym (zero h h') = zero h' h
-    R/Nat-sym (succ h h' r) = succ h' h (R/Nat-sym r)
+  typeᵒ-val : {A A' : exp} → A ≐ A' typeᵒ → A val
+  typeᵒ-val Bool = Bool
+  typeᵒ-val Nat = Nat
+  typeᵒ-val (h₁ × h₂) = typeᵒ-val h₁ × typeᵒ-val h₂
+  typeᵒ-val (Id h h₁ h₂) = Id
 
-    R/Nat-trans : Transitive R/Nat
-    R/Nat-trans (zero h _) (zero _ h') = zero h h'
-    R/Nat-trans (zero _ h₁) (succ h₁' _ _) with ⇓-deterministic h₁ h₁'
-    ... | ()
-    R/Nat-trans (succ _ h₁ _) (zero h₁' _)  with ⇓-deterministic h₁ h₁'
-    ... | ()
-    R/Nat-trans (succ h h₁ r) (succ h₁' h' r') with ⇓-deterministic h₁ h₁'
-    ... | refl = succ h h' (R/Nat-trans r r')
+  typeᵒ-val' : {A A' : exp} → A ≐ A' typeᵒ → A' val
+  typeᵒ-val' Bool = Bool
+  typeᵒ-val' Nat = Nat
+  typeᵒ-val' (h₁ × h₂) = typeᵒ-val' h₁ × typeᵒ-val' h₂
+  typeᵒ-val' (Id h h₁ h₂) = Id
 
-    R/Nat-isPartialEquivalence : IsPartialEquivalence R/Nat
-    R/Nat-isPartialEquivalence = record { sym = R/Nat-sym ; trans = R/Nat-trans }
+  typeᵒ-type : {A A' : exp} → A ≐ A' typeᵒ → A ≐ A' type
+  typeᵒ-type A≐A'typeᵒ = ⇓ (val⇓ (typeᵒ-val A≐A'typeᵒ)) ,⇓ (val⇓ (typeᵒ-val' A≐A'typeᵒ)) , A≐A'typeᵒ
 
-    data _∋ᵒ_≐_ : (A : exp) → exp → exp → Set
-    record _∋_≐_ (A : exp) (M M' : exp) : Set
+  data R/Bool : exp → exp → Set where
+    tt : {M M' : exp} → M ⇓ tt → M' ⇓ tt → R/Bool M M'
+    ff : {M M' : exp} → M ⇓ ff → M' ⇓ ff → R/Bool M M'
 
-    A∋ᵒ≐-sym : {A : exp} → Symmetric (A ∋ᵒ_≐_)
-    A∋ᵒ≐-trans : {A : exp} → Transitive (A ∋ᵒ_≐_)
-    A∋ᵒ≐-isPartialEquivalence : (A : exp) → IsPartialEquivalence (A ∋ᵒ_≐_)
+  R/Bool-sym : Symmetric R/Bool
+  R/Bool-sym (tt h h') = tt h' h
+  R/Bool-sym (ff h h') = ff h' h
 
-    A∋≐-sym : {A : exp} → Symmetric (A ∋_≐_)
-    A∋≐-trans : {A : exp} → Transitive (A ∋_≐_)
-    A∋≐-isPartialEquivalence : (A : exp) → IsPartialEquivalence (A ∋_≐_)
+  R/Bool-trans : Transitive R/Bool
+  R/Bool-trans (tt h _) (tt _ h') = tt h h'
+  R/Bool-trans (tt _ h) (ff h' _) with ⇓-deterministic h h'
+  ... | ()
+  R/Bool-trans (ff _ h) (tt h' _) with ⇓-deterministic h h'
+  ... | ()
+  R/Bool-trans (ff h _) (ff _ h') = ff h h'
 
-    data _∋ᵒ_≐_ where
-      Bool : {M M' : exp} → R/Bool M M' → Bool ∋ᵒ M ≐ M'
-      Nat : {M M' : exp} → R/Nat M M' → Nat ∋ᵒ M ≐ M'
-      _×_ : {A₁ A₂ M₁ M₂ M₁' M₂' : exp} →
-        A₁ ∋ M₁ ≐ M₁' →
-        A₂ ∋ M₂ ≐ M₂' →
-        (A₁ × A₂) ∋ᵒ ⟨ M₁ , M₂ ⟩ ≐ ⟨ M₁' , M₂' ⟩
+  R/Bool-isPartialEquivalence : IsPartialEquivalence R/Bool
+  R/Bool-isPartialEquivalence = record { sym = R/Bool-sym ; trans = R/Bool-trans }
 
-    _∋ᵒ_ : (A : exp) → exp → Set
-    A ∋ᵒ M = A ∋ᵒ M ≐ M
+  data R/Nat : exp → exp → Set where
+    zero : {M M' : exp} → M ⇓ zero → M' ⇓ zero → R/Nat M M'
+    succ : {M M' N N' : exp} → M ⇓ succ N → M' ⇓ succ N' → R/Nat N N' → R/Nat M M'
 
-    A∋ᵒ≐-sym (Bool h) = Bool (R/Bool-sym h)
-    A∋ᵒ≐-sym (Nat h) = Nat (R/Nat-sym h)
-    A∋ᵒ≐-sym (h₁ × h₂) = A∋≐-sym h₁ × A∋≐-sym h₂
+  R/Nat-sym : Symmetric R/Nat
+  R/Nat-sym (zero h h') = zero h' h
+  R/Nat-sym (succ h h' r) = succ h' h (R/Nat-sym r)
 
-    A∋ᵒ≐-trans (Bool h) (Bool h') = Bool (R/Bool-trans h h')
-    A∋ᵒ≐-trans (Nat h) (Nat h') = Nat (R/Nat-trans h h')
-    A∋ᵒ≐-trans (h₁ × h₂) (h₁' × h₂') = A∋≐-trans h₁ h₁' × A∋≐-trans h₂ h₂'
+  R/Nat-trans : Transitive R/Nat
+  R/Nat-trans (zero h _) (zero _ h') = zero h h'
+  R/Nat-trans (zero _ h₁) (succ h₁' _ _) with ⇓-deterministic h₁ h₁'
+  ... | ()
+  R/Nat-trans (succ _ h₁ _) (zero h₁' _)  with ⇓-deterministic h₁ h₁'
+  ... | ()
+  R/Nat-trans (succ h h₁ r) (succ h₁' h' r') with ⇓-deterministic h₁ h₁'
+  ... | refl = succ h h' (R/Nat-trans r r')
 
-    A∋ᵒ≐-isPartialEquivalence A = record { sym = A∋ᵒ≐-sym ; trans = A∋ᵒ≐-trans }
+  R/Nat-isPartialEquivalence : IsPartialEquivalence R/Nat
+  R/Nat-isPartialEquivalence = record { sym = R/Nat-sym ; trans = R/Nat-trans }
 
-    record _∋_≐_ A M M' where
-      constructor ⇓_,⇓_,⇓_,_
-      pattern
-      inductive
-      field
-        {Aᵒ} : exp
-        A⇓Aᵒ : A ⇓ Aᵒ
-        {Mᵒ} : exp
-        M⇓Mᵒ : M ⇓ Mᵒ
-        {M'ᵒ} : exp
-        M'⇓M'ᵒ : M' ⇓ M'ᵒ
-        Aᵒ∋ᵒMᵒ≐M'ᵒ : Aᵒ ∋ᵒ Mᵒ ≐ M'ᵒ
+  data R/Id : exp → exp → Set where
+    refl : {M M' : exp} → M ⇓ refl → M' ⇓ refl → R/Id M M'
 
-    _∋_ : (A : exp) → exp → Set
-    A ∋ M = A ∋ M ≐ M
+  R/Id-sym : Symmetric R/Id
+  R/Id-sym (refl h h') = refl h' h
 
-    A∋≐-sym {A} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ M'⇓M'ᵒ ,⇓ M⇓Mᵒ , A∋ᵒ≐-sym A∋ᵒMᵒ≐M'ᵒ
+  R/Id-trans : Transitive R/Id
+  R/Id-trans (refl h₁ h₁') (refl h₂ h₂') = refl h₁ h₂'
 
-    A∋≐-trans {A} {M₀} {M₁} {M₂} (⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₁⇓ , A∋ᵒMᵒ≐M'ᵒ₁) (⇓ A⇓' ,⇓ M₁⇓' ,⇓ M₂⇓ , A∋ᵒM'ᵒ₁≐M'ᵒ) with ⇓-deterministic A⇓ A⇓' | ⇓-deterministic M₁⇓ M₁⇓'
-    ... | refl | refl = ⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₂⇓ , (A∋ᵒ≐-trans A∋ᵒMᵒ≐M'ᵒ₁ A∋ᵒM'ᵒ₁≐M'ᵒ)
+  R/Id-isPartialEquivalence : IsPartialEquivalence R/Id
+  R/Id-isPartialEquivalence = record { sym = R/Id-sym ; trans = R/Id-trans }
 
-    A∋≐-isPartialEquivalence A = record { sym = A∋≐-sym ; trans = A∋≐-trans }
+  data _∋ᵒ_≐_ where
+    Bool : {M M' : exp} → R/Bool M M' → Bool ∋ᵒ M ≐ M'
+    Nat : {M M' : exp} → R/Nat M M' → Nat ∋ᵒ M ≐ M'
+    _×_ : {A₁ A₂ M₁ M₂ M₁' M₂' : exp} →
+      A₁ ∋ M₁ ≐ M₁' →
+      A₂ ∋ M₂ ≐ M₂' →
+      (A₁ × A₂) ∋ᵒ ⟨ M₁ , M₂ ⟩ ≐ ⟨ M₁' , M₂' ⟩
+    Id : {A M₁ M₂ M M' : exp} →
+      R/Id M M' →
+      A ∋ M₁ ≐ M₂ →
+      Id A M₁ M₂ ∋ᵒ M ≐ M'
 
-    -- Lemmas
+  _∋ᵒ_ : (A : exp) → exp → Set
+  A ∋ᵒ M = A ∋ᵒ M ≐ M
 
-    rev-closure-A : {A A' M₁ M₂ : exp} → A ↦ A' → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
-    rev-closure-A A↦A' (⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , Aᵒ∋ᵒM₁ᵒ≐M₂ᵒ) = ⇓ step⇓ A↦A' A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , Aᵒ∋ᵒM₁ᵒ≐M₂ᵒ
+  A∋ᵒ≐-sym (Bool h) = Bool (R/Bool-sym h)
+  A∋ᵒ≐-sym (Nat h) = Nat (R/Nat-sym h)
+  A∋ᵒ≐-sym (h₁ × h₂) = A∋≐-sym h₁ × A∋≐-sym h₂
+  A∋ᵒ≐-sym (Id h h≐) = Id (R/Id-sym h) h≐
 
-    rev-closure-A* : {A A' M₁ M₂ : exp} → A ↦* A' → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
-    rev-closure-A* here A'∋M₁≐M₂ = A'∋M₁≐M₂
-    rev-closure-A* (step A↦A'' A''↦*A') A'∋M₁≐M₂ = rev-closure-A A↦A'' (rev-closure-A* A''↦*A' A'∋M₁≐M₂)
+  A∋ᵒ≐-trans (Bool h) (Bool h') = Bool (R/Bool-trans h h')
+  A∋ᵒ≐-trans (Nat h) (Nat h') = Nat (R/Nat-trans h h')
+  A∋ᵒ≐-trans (h₁ × h₂) (h₁' × h₂') = A∋≐-trans h₁ h₁' × A∋≐-trans h₂ h₂'
+  A∋ᵒ≐-trans (Id h h≐) (Id h' h≐') = Id (R/Id-trans h h') h≐
 
-    rev-closure-M : {A M M' : exp} → M ↦ M' → A ∋ M' → A ∋ M
-    rev-closure-M M↦M' (⇓ A⇓Aᵒ ,⇓ M'⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ step⇓ M↦M' M'⇓Mᵒ ,⇓ step⇓ M↦M' M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ
+  A∋ᵒ≐-isPartialEquivalence A = record { sym = A∋ᵒ≐-sym ; trans = A∋ᵒ≐-trans }
 
-    rev-closure-M* : {A M M' : exp} → M ↦* M' → A ∋ M' → A ∋ M
-    rev-closure-M* here A∋M' = A∋M'
-    rev-closure-M* (step M↦M'' M''↦*M') A∋M' = rev-closure-M M↦M'' (rev-closure-M* M''↦*M' A∋M')
+  record _∋_≐_ A M M' where
+    constructor ⇓_,⇓_,⇓_,_
+    pattern
+    inductive
+    field
+      {Aᵒ} : exp
+      A⇓Aᵒ : A ⇓ Aᵒ
+      {Mᵒ} : exp
+      M⇓Mᵒ : M ⇓ Mᵒ
+      {M'ᵒ} : exp
+      M'⇓M'ᵒ : M' ⇓ M'ᵒ
+      Aᵒ∋ᵒMᵒ≐M'ᵒ : Aᵒ ∋ᵒ Mᵒ ≐ M'ᵒ
 
-    rev-closure-M*₂ : {A M₁ M₁' M₂ M₂' : exp} → M₁ ↦* M₁' → M₂ ↦* M₂' → A ∋ M₁' ≐ M₂' → A ∋ M₁ ≐ M₂
-    rev-closure-M*₂ M₁↦*M₁' M₂↦*M₂' (⇓ A⇓Aᵒ ,⇓ M₁'⇓M₁'ᵒ ,⇓ M₂'⇓M₂'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) =
-      ⇓ A⇓Aᵒ ,⇓ ((↦*-append M₁↦*M₁' (_⇓_.M↦*M' M₁'⇓M₁'ᵒ)) and _⇓_.M'val M₁'⇓M₁'ᵒ) ,⇓ ((↦*-append M₂↦*M₂' (_⇓_.M↦*M' M₂'⇓M₂'ᵒ)) and _⇓_.M'val M₂'⇓M₂'ᵒ) , Aᵒ∋ᵒMᵒ≐M'ᵒ
+  _∋_ : (A : exp) → exp → Set
+  A ∋ M = A ∋ M ≐ M
 
-    lemma/moveᵒ : {A A' M₁ M₂ : exp} → A ≐ A' typeᵒ → A' ∋ᵒ M₁ ≐ M₂ → A ∋ᵒ M₁ ≐ M₂
-    lemma/move : {A A' M₁ M₂ : exp} → A ≐ A' type → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
+  A∋≐-sym {A} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ M'⇓M'ᵒ ,⇓ M⇓Mᵒ , A∋ᵒ≐-sym A∋ᵒMᵒ≐M'ᵒ
 
-    lemma/moveᵒ Bool A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
-    lemma/moveᵒ Nat A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
-    lemma/moveᵒ (A₁≐A₁'typeᵒ × A₂≐A₂'typeᵒ) (A₁'∋ᵒM₁≐M₁' × A₂'∋ᵒM₂≐M₂') = lemma/move (typeᵒ-type A₁≐A₁'typeᵒ) A₁'∋ᵒM₁≐M₁' × lemma/move (typeᵒ-type A₂≐A₂'typeᵒ) A₂'∋ᵒM₂≐M₂'
+  A∋≐-trans {A} {M₀} {M₁} {M₂} (⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₁⇓ , A∋ᵒMᵒ≐M'ᵒ₁) (⇓ A⇓' ,⇓ M₁⇓' ,⇓ M₂⇓ , A∋ᵒM'ᵒ₁≐M'ᵒ) with ⇓-deterministic A⇓ A⇓' | ⇓-deterministic M₁⇓ M₁⇓'
+  ... | refl | refl = ⇓ A⇓ ,⇓ M₀⇓ ,⇓ M₂⇓ , (A∋ᵒ≐-trans A∋ᵒMᵒ≐M'ᵒ₁ A∋ᵒM'ᵒ₁≐M'ᵒ)
 
-    lemma/move (⇓ A⇓Aᵒ ,⇓ A'⇓A'ᵒ₁ , Aᵒ≐A'ᵒtypeᵒ) (⇓ A'⇓A'ᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ) with ⇓-deterministic A'⇓A'ᵒ₁ A'⇓A'ᵒ
-    ... | refl = ⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , lemma/moveᵒ Aᵒ≐A'ᵒtypeᵒ A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ
+  A∋≐-isPartialEquivalence A = record { sym = A∋≐-sym ; trans = A∋≐-trans }
 
-  open Type
-  open Membership
+  -- Lemmas
+
+  lemma/moveᵒ Bool A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
+  lemma/moveᵒ Nat A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
+  lemma/moveᵒ (A₁≐A₁'typeᵒ × A₂≐A₂'typeᵒ) (A₁'∋ᵒM₁≐M₁' × A₂'∋ᵒM₂≐M₂') = lemma/move (typeᵒ-type A₁≐A₁'typeᵒ) A₁'∋ᵒM₁≐M₁' × lemma/move (typeᵒ-type A₂≐A₂'typeᵒ) A₂'∋ᵒM₂≐M₂'
+  lemma/moveᵒ (Id A≐A'type A∋M₁≐M₁' A∋M₂≐M₂') (Id h h≐) = Id h (A∋≐-trans A∋M₁≐M₁' (A∋≐-trans (lemma/move A≐A'type h≐) (A∋≐-sym A∋M₂≐M₂')))
+
+  lemma/move (⇓ A⇓Aᵒ ,⇓ A'⇓A'ᵒ₁ , Aᵒ≐A'ᵒtypeᵒ) (⇓ A'⇓A'ᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ) with ⇓-deterministic A'⇓A'ᵒ₁ A'⇓A'ᵒ
+  ... | refl = ⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , lemma/moveᵒ Aᵒ≐A'ᵒtypeᵒ A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ
+
+  rev-closure-A : {A A' M₁ M₂ : exp} → A ↦ A' → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
+  rev-closure-A A↦A' (⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , Aᵒ∋ᵒM₁ᵒ≐M₂ᵒ) = ⇓ step⇓ A↦A' A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , Aᵒ∋ᵒM₁ᵒ≐M₂ᵒ
+
+  rev-closure-A* : {A A' M₁ M₂ : exp} → A ↦* A' → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
+  rev-closure-A* here A'∋M₁≐M₂ = A'∋M₁≐M₂
+  rev-closure-A* (step A↦A'' A''↦*A') A'∋M₁≐M₂ = rev-closure-A A↦A'' (rev-closure-A* A''↦*A' A'∋M₁≐M₂)
+
+  rev-closure-M : {A M M' : exp} → M ↦ M' → A ∋ M' → A ∋ M
+  rev-closure-M M↦M' (⇓ A⇓Aᵒ ,⇓ M'⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ step⇓ M↦M' M'⇓Mᵒ ,⇓ step⇓ M↦M' M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ
+
+  rev-closure-M* : {A M M' : exp} → M ↦* M' → A ∋ M' → A ∋ M
+  rev-closure-M* here A∋M' = A∋M'
+  rev-closure-M* (step M↦M'' M''↦*M') A∋M' = rev-closure-M M↦M'' (rev-closure-M* M''↦*M' A∋M')
+
+  rev-closure-M*₂ : {A M₁ M₁' M₂ M₂' : exp} → M₁ ↦* M₁' → M₂ ↦* M₂' → A ∋ M₁' ≐ M₂' → A ∋ M₁ ≐ M₂
+  rev-closure-M*₂ M₁↦*M₁' M₂↦*M₂' (⇓ A⇓Aᵒ ,⇓ M₁'⇓M₁'ᵒ ,⇓ M₂'⇓M₂'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) =
+    ⇓ A⇓Aᵒ ,⇓ ((↦*-append M₁↦*M₁' (_⇓_.M↦*M' M₁'⇓M₁'ᵒ)) and _⇓_.M'val M₁'⇓M₁'ᵒ) ,⇓ ((↦*-append M₂↦*M₂' (_⇓_.M↦*M' M₂'⇓M₂'ᵒ)) and _⇓_.M'val M₂'⇓M₂'ᵒ) , Aᵒ∋ᵒMᵒ≐M'ᵒ
 
   -- Hypotheticals
 
@@ -411,3 +451,12 @@ module Example1 where
 
   fact/⟨,⟩·1 : {A₁ M₁ M₂ : exp} → A₁ ∋ M₁ → A₁ ∋ ⟨ M₁ , M₂ ⟩ ·1 ≐ M₁
   fact/⟨,⟩·1 (⇓ A⇓Aᵒ ,⇓ M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ step⇓ _·1 M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ
+
+  fact/id/inhabited : Id Nat (succ zero) (succ zero) ∋ refl
+  fact/id/inhabited =
+    ⇓ val⇓ Id ,⇓ val⇓ refl ,⇓ val⇓ refl ,
+      Id (refl (val⇓ refl) (val⇓ refl)) (
+        ⇓ val⇓ Nat ,⇓ val⇓ succ ,⇓ val⇓ succ , (
+          Nat (succ (val⇓ succ) (val⇓ succ) (zero (val⇓ zero) (val⇓ zero)))
+        )
+      )
