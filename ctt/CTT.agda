@@ -93,7 +93,7 @@ module Example1 where
     ⟨_,_⟩ : exp → exp → exp
     _·1 : exp → exp
     _·2 : exp → exp
-    Id : exp → exp → exp → exp
+    Eq : exp → exp → exp → exp
     refl : exp
 
 
@@ -106,7 +106,7 @@ module Example1 where
     succ : {M : exp} → succ M val
     _×_ : {A₁ A₂ : exp} → A₁ val → A₂ val → (A₁ × A₂) val
     ⟨_,_⟩ : {M₁ M₂ : exp} → ⟨ M₁ , M₂ ⟩ val
-    Id : {A M₁ M₂ : exp} → Id A M₁ M₂ val
+    Eq : {A M₁ M₂ : exp} → Eq A M₁ M₂ val
     refl : refl val
 
   infix 3 _↦_
@@ -190,11 +190,11 @@ module Example1 where
       A₁ ≐ A₁' typeᵒ →
       A₂ ≐ A₂' typeᵒ →
       (A₁ × A₂) ≐ (A₁' × A₂') typeᵒ
-    Id : {A A' M₁ M₁' M₂ M₂' : exp} →
+    Eq : {A A' M₁ M₁' M₂ M₂' : exp} →
       A ≐ A' type →
       A ∋ M₁ ≐ M₁' →
       A ∋ M₂ ≐ M₂' →
-      Id A M₁ M₂ ≐ Id A' M₁' M₂' typeᵒ
+      Eq A M₁ M₂ ≐ Eq A' M₁' M₂' typeᵒ
 
   _typeᵒ : exp → Set
   A typeᵒ = A ≐ A typeᵒ
@@ -219,12 +219,12 @@ module Example1 where
   ≐typeᵒ-sym Bool = Bool
   ≐typeᵒ-sym Nat = Nat
   ≐typeᵒ-sym (h₁ × h₂) = ≐typeᵒ-sym h₁ × ≐typeᵒ-sym h₂
-  ≐typeᵒ-sym (Id h h₁ h₂) = Id (≐type-sym h) (A∋≐-sym (lemma/move (≐type-sym h) h₁)) (A∋≐-sym (lemma/move (≐type-sym h) h₂))
+  ≐typeᵒ-sym (Eq h h₁ h₂) = Eq (≐type-sym h) (A∋≐-sym (lemma/move (≐type-sym h) h₁)) (A∋≐-sym (lemma/move (≐type-sym h) h₂))
 
   ≐typeᵒ-trans Bool Bool = Bool
   ≐typeᵒ-trans Nat Nat = Nat
   ≐typeᵒ-trans (h₁ × h₂) (h₁' × h₂') = ≐typeᵒ-trans h₁ h₁' × ≐typeᵒ-trans h₂ h₂'
-  ≐typeᵒ-trans (Id h h₁ h₂) (Id h' h₁' h₂') = Id (≐type-trans h h') (A∋≐-trans h₁ (lemma/move h h₁')) (A∋≐-trans h₂ (lemma/move h h₂'))
+  ≐typeᵒ-trans (Eq h h₁ h₂) (Eq h' h₁' h₂') = Eq (≐type-trans h h') (A∋≐-trans h₁ (lemma/move h h₁')) (A∋≐-trans h₂ (lemma/move h h₂'))
 
   ≐typeᵒ-isPartialEquivalence = record { sym = ≐typeᵒ-sym ; trans = ≐typeᵒ-trans }
 
@@ -239,13 +239,13 @@ module Example1 where
   typeᵒ-val Bool = Bool
   typeᵒ-val Nat = Nat
   typeᵒ-val (h₁ × h₂) = typeᵒ-val h₁ × typeᵒ-val h₂
-  typeᵒ-val (Id h h₁ h₂) = Id
+  typeᵒ-val (Eq h h₁ h₂) = Eq
 
   typeᵒ-val' : {A A' : exp} → A ≐ A' typeᵒ → A' val
   typeᵒ-val' Bool = Bool
   typeᵒ-val' Nat = Nat
   typeᵒ-val' (h₁ × h₂) = typeᵒ-val' h₁ × typeᵒ-val' h₂
-  typeᵒ-val' (Id h h₁ h₂) = Id
+  typeᵒ-val' (Eq h h₁ h₂) = Eq
 
   typeᵒ-type : {A A' : exp} → A ≐ A' typeᵒ → A ≐ A' type
   typeᵒ-type A≐A'typeᵒ = ⇓ (val⇓ (typeᵒ-val A≐A'typeᵒ)) ,⇓ (val⇓ (typeᵒ-val' A≐A'typeᵒ)) , A≐A'typeᵒ
@@ -289,17 +289,17 @@ module Example1 where
   R/Nat-isPartialEquivalence : IsPartialEquivalence R/Nat
   R/Nat-isPartialEquivalence = record { sym = R/Nat-sym ; trans = R/Nat-trans }
 
-  data R/Id : exp → exp → Set where
-    refl : {M M' : exp} → M ⇓ refl → M' ⇓ refl → R/Id M M'
+  data R/Eq : exp → exp → Set where
+    refl : {M M' : exp} → M ⇓ refl → M' ⇓ refl → R/Eq M M'
 
-  R/Id-sym : Symmetric R/Id
-  R/Id-sym (refl h h') = refl h' h
+  R/Eq-sym : Symmetric R/Eq
+  R/Eq-sym (refl h h') = refl h' h
 
-  R/Id-trans : Transitive R/Id
-  R/Id-trans (refl h₁ h₁') (refl h₂ h₂') = refl h₁ h₂'
+  R/Eq-trans : Transitive R/Eq
+  R/Eq-trans (refl h₁ h₁') (refl h₂ h₂') = refl h₁ h₂'
 
-  R/Id-isPartialEquivalence : IsPartialEquivalence R/Id
-  R/Id-isPartialEquivalence = record { sym = R/Id-sym ; trans = R/Id-trans }
+  R/Eq-isPartialEquivalence : IsPartialEquivalence R/Eq
+  R/Eq-isPartialEquivalence = record { sym = R/Eq-sym ; trans = R/Eq-trans }
 
   data _∋ᵒ_≐_ where
     Bool : {M M' : exp} → R/Bool M M' → Bool ∋ᵒ M ≐ M'
@@ -308,10 +308,10 @@ module Example1 where
       A₁ ∋ M₁ ≐ M₁' →
       A₂ ∋ M₂ ≐ M₂' →
       (A₁ × A₂) ∋ᵒ ⟨ M₁ , M₂ ⟩ ≐ ⟨ M₁' , M₂' ⟩
-    Id : {A M₁ M₂ M M' : exp} →
-      R/Id M M' →
+    Eq : {A M₁ M₂ M M' : exp} →
+      R/Eq M M' →
       A ∋ M₁ ≐ M₂ →
-      Id A M₁ M₂ ∋ᵒ M ≐ M'
+      Eq A M₁ M₂ ∋ᵒ M ≐ M'
 
   _∋ᵒ_ : (A : exp) → exp → Set
   A ∋ᵒ M = A ∋ᵒ M ≐ M
@@ -319,12 +319,12 @@ module Example1 where
   A∋ᵒ≐-sym (Bool h) = Bool (R/Bool-sym h)
   A∋ᵒ≐-sym (Nat h) = Nat (R/Nat-sym h)
   A∋ᵒ≐-sym (h₁ × h₂) = A∋≐-sym h₁ × A∋≐-sym h₂
-  A∋ᵒ≐-sym (Id h h≐) = Id (R/Id-sym h) h≐
+  A∋ᵒ≐-sym (Eq h h≐) = Eq (R/Eq-sym h) h≐
 
   A∋ᵒ≐-trans (Bool h) (Bool h') = Bool (R/Bool-trans h h')
   A∋ᵒ≐-trans (Nat h) (Nat h') = Nat (R/Nat-trans h h')
   A∋ᵒ≐-trans (h₁ × h₂) (h₁' × h₂') = A∋≐-trans h₁ h₁' × A∋≐-trans h₂ h₂'
-  A∋ᵒ≐-trans (Id h h≐) (Id h' h≐') = Id (R/Id-trans h h') h≐
+  A∋ᵒ≐-trans (Eq h h≐) (Eq h' h≐') = Eq (R/Eq-trans h h') h≐
 
   A∋ᵒ≐-isPartialEquivalence A = record { sym = A∋ᵒ≐-sym ; trans = A∋ᵒ≐-trans }
 
@@ -359,7 +359,7 @@ module Example1 where
   lemma/moveᵒ Bool A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
   lemma/moveᵒ Nat A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
   lemma/moveᵒ (A₁≐A₁'typeᵒ × A₂≐A₂'typeᵒ) (A₁'∋ᵒM₁≐M₁' × A₂'∋ᵒM₂≐M₂') = lemma/move (typeᵒ-type A₁≐A₁'typeᵒ) A₁'∋ᵒM₁≐M₁' × lemma/move (typeᵒ-type A₂≐A₂'typeᵒ) A₂'∋ᵒM₂≐M₂'
-  lemma/moveᵒ (Id A≐A'type A∋M₁≐M₁' A∋M₂≐M₂') (Id h h≐) = Id h (A∋≐-trans A∋M₁≐M₁' (A∋≐-trans (lemma/move A≐A'type h≐) (A∋≐-sym A∋M₂≐M₂')))
+  lemma/moveᵒ (Eq A≐A'type A∋M₁≐M₁' A∋M₂≐M₂') (Eq h h≐) = Eq h (A∋≐-trans A∋M₁≐M₁' (A∋≐-trans (lemma/move A≐A'type h≐) (A∋≐-sym A∋M₂≐M₂')))
 
   lemma/move (⇓ A⇓Aᵒ ,⇓ A'⇓A'ᵒ₁ , Aᵒ≐A'ᵒtypeᵒ) (⇓ A'⇓A'ᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ) with ⇓-deterministic A'⇓A'ᵒ₁ A'⇓A'ᵒ
   ... | refl = ⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , lemma/moveᵒ Aᵒ≐A'ᵒtypeᵒ A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ
@@ -455,14 +455,14 @@ module Example1 where
   fact/⟨,⟩·1 : {A₁ M₁ M₂ : exp} → A₁ ∋ M₁ → A₁ ∋ ⟨ M₁ , M₂ ⟩ ·1 ≐ M₁
   fact/⟨,⟩·1 (⇓ A⇓Aᵒ ,⇓ M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ step⇓ _·1 M₁⇓Mᵒ ,⇓ M₁⇓M'ᵒ , A₁∋ᵒMᵒ≐M'ᵒ
 
-  fact/id/inhabited : Id Nat (succ zero) (succ zero) ∋ refl
-  fact/id/inhabited =
-    ⇓ val⇓ Id ,⇓ val⇓ refl ,⇓-,
-      Id (refl (val⇓ refl) (val⇓ refl)) (
+  fact/eq/inhabited : Eq Nat (succ zero) (succ zero) ∋ refl
+  fact/eq/inhabited =
+    ⇓ val⇓ Eq ,⇓ val⇓ refl ,⇓-,
+      Eq (refl (val⇓ refl) (val⇓ refl)) (
         ⇓ val⇓ Nat ,⇓ val⇓ succ ,⇓-, (
           Nat (succ (val⇓ succ) (val⇓ succ) (zero (val⇓ zero) (val⇓ zero)))
         )
       )
 
-  fact/id/reflexive : {A M : exp} → A ∋ M → Id A M M ∋ refl
-  fact/id/reflexive A∋M = ⇓ val⇓ Id ,⇓ val⇓ refl ,⇓-, Id (refl (val⇓ refl) (val⇓ refl)) A∋M
+  fact/eq/reflexive : {A M : exp} → A ∋ M → Eq A M M ∋ refl
+  fact/eq/reflexive A∋M = ⇓ val⇓ Eq ,⇓ val⇓ refl ,⇓-, Eq (refl (val⇓ refl) (val⇓ refl)) A∋M
