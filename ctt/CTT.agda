@@ -390,23 +390,19 @@ module Example1 where
     Nat >> (λ a a' → B a >> λ b b' → B (succ a) ∋ M₁ a b ≐ M₁ a' b') →
     Nat ∋ M → B M ∋ rec M₀ M₁ M
   fact/rec Nat>>Btype h₀ h₁ (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M⇓M'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) with val⇓val Nat A⇓Aᵒ
-  fact/rec {B} {M₀} {M₁} Nat>>Btype h₀ h₁ (⇓ A⇓Nat ,⇓ M⇓Mᵒ ,⇓ M⇓M'ᵒ , Nat r) | refl = induction (_⇓_.M↦*M' M⇓Mᵒ) (_⇓_.M↦*M' M⇓M'ᵒ) r
+  fact/rec {B} {M₀} {M₁} Nat>>Btype h₀ h₁ (⇓ A⇓Nat ,⇓ M⇓Mᵒ ,⇓ M⇓M'ᵒ , Nat r) | refl = induction (_⇓_.M↦*M' M⇓Mᵒ) r
     where
-      induction : {M M' Mᵒ M'ᵒ : exp} → M ↦* Mᵒ → M' ↦* M'ᵒ → R/Nat Mᵒ M'ᵒ → B M ∋ rec M₀ M₁ M ≐ rec M₀ M₁ M'
-      induction M↦*Mᵒ M'↦*M'ᵒ (zero Mᵒ⇓zero Mᵒ⇓zero') =
-        let step-principal  = lift-principal (rec M₀ M₁) rec/principal (↦*-append M↦*Mᵒ (_⇓_.M↦*M' Mᵒ⇓zero))
-            step-principal' = lift-principal (rec M₀ M₁) rec/principal (↦*-append M'↦*M'ᵒ (_⇓_.M↦*M' Mᵒ⇓zero'))
-        in
-        rev-closure-M*₂ (stepʳ step-principal rec/zero) (stepʳ step-principal' rec/zero) $
+      induction : {M Mᵒ M'ᵒ : exp} → M ↦* Mᵒ → R/Nat Mᵒ M'ᵒ → B M ∋ rec M₀ M₁ M
+      induction M↦*Mᵒ (zero Mᵒ⇓zero Mᵒ⇓zero') =
+        let step-principal  = lift-principal (rec M₀ M₁) rec/principal (↦*-append M↦*Mᵒ (_⇓_.M↦*M' Mᵒ⇓zero)) in
+        rev-closure-M* (stepʳ step-principal rec/zero) $
         lemma/move (Nat>>Btype (⇓ A⇓Nat ,⇓ step*⇓ M↦*Mᵒ Mᵒ⇓zero ,⇓ val⇓ zero , Nat (zero (val⇓ zero) (val⇓ zero)))) $
         h₀
-      induction M↦*Mᵒ M'↦*M'ᵒ (succ Mᵒ⇓succN Mᵒ⇓succN' r) =
-        let step-principal  = lift-principal (rec M₀ M₁) rec/principal (↦*-append M↦*Mᵒ (_⇓_.M↦*M' Mᵒ⇓succN))
-            step-principal' = lift-principal (rec M₀ M₁) rec/principal (↦*-append M'↦*M'ᵒ (_⇓_.M↦*M' Mᵒ⇓succN'))
-        in
-        rev-closure-M*₂ (stepʳ step-principal rec/succ) (stepʳ step-principal' rec/succ) $
+      induction M↦*Mᵒ (succ Mᵒ⇓succN Mᵒ⇓succN' r) =
+        let step-principal  = lift-principal (rec M₀ M₁) rec/principal (↦*-append M↦*Mᵒ (_⇓_.M↦*M' Mᵒ⇓succN)) in
+        rev-closure-M* (stepʳ step-principal rec/succ) $
         lemma/move (Nat>>Btype (⇓ A⇓Nat ,⇓ step*⇓ M↦*Mᵒ Mᵒ⇓succN ,⇓ val⇓ succ , Nat (succ (val⇓ succ) (val⇓ succ) (per-refl R/Nat-isPartialEquivalence r)))) $
-        h₁ (R/Nat⇒Nat∋≐ r) (induction here here r)
+        h₁ (per-refl (A∋≐-isPartialEquivalence Nat) (R/Nat⇒Nat∋≐ r)) (induction here r)
 
   fact/·1 : {A₁ A₂ M : exp} → A₁ val → A₂ val → (A₁ × A₂) ∋ M → A₁ ∋ (M ·1)
   fact/·1 {A₁ = A₁} A₁val A₂val (⇓ A⇓Aᵒ ,⇓ M⇓⟨M₁,M₂⟩ ,⇓ M⇓⟨M₁',M₂'⟩ , Aᵒ∋ᵒMᵒ≐M'ᵒ) with val⇓val (A₁val × A₂val) A⇓Aᵒ
