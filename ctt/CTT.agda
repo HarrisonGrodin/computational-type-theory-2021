@@ -4,7 +4,7 @@
 
 module CTT where
 
-open import Function using (_$_)
+open import Function using (_$_; _∘_)
 open import Level using (Level)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
@@ -45,6 +45,10 @@ module MultiStep (L : Language) where
   stepʳ : {M M' M'' : exp} → M ↦* M' → M' ↦ M'' → M ↦* M''
   stepʳ M↦*M' M'↦M'' = ↦*-append M↦*M' (step M'↦M'' here)
 
+  lift-principal : (f : exp → exp) → ({M M' : exp} → M ↦ M' → f M ↦ f M') → {M M' : exp} → M ↦* M' → f M ↦* f M'
+  lift-principal f h here = here
+  lift-principal f h (step M↦M'' M''↦*M') = step (h M↦M'') (lift-principal f h M''↦*M')
+
   record _⇓_ (M M' : exp) : Set where
     constructor _and_
     field
@@ -52,7 +56,10 @@ module MultiStep (L : Language) where
       M'val : M' val
 
   step⇓ : {M M' M'' : exp} → M ↦ M' → M' ⇓ M'' → M ⇓ M''
-  step⇓ h (M↦*M' and M'val) = step h M↦*M' and M'val
+  step⇓ M↦*M' (M'↦*M'' and M''val) = step M↦*M' M'↦*M'' and M''val
+
+  step*⇓ : {M M' M'' : exp} → M ↦* M' → M' ⇓ M'' → M ⇓ M''
+  step*⇓ M↦*M' (M'↦*M'' and M''val) = ↦*-append M↦*M' M'↦*M'' and M''val
 
   val⇓ : {M : exp} → M val → M ⇓ M
   val⇓ Mval = here and Mval
@@ -81,7 +88,7 @@ module Example1 where
     Nat : exp
     zero : exp
     succ : exp → exp
-    rec : exp → (exp → exp) → exp → exp
+    rec : exp → (exp → exp → exp) → exp → exp
     _×_ : exp → exp → exp
     ⟨_,_⟩ : exp → exp → exp
     _·1 : exp → exp
@@ -101,11 +108,11 @@ module Example1 where
   infix 3 _↦_
   data _↦_ : exp → exp → Set where
     if/principal : {M M' M₁ M₀ : exp} → M ↦ M' → if M M₁ M₀ ↦ if M' M₁ M₀
-    if/tt : (M₁ M₀ : exp) → if tt M₁ M₀ ↦ M₁
-    if/ff : (M₁ M₀ : exp) → if ff M₁ M₀ ↦ M₀
+    if/tt : {M₁ M₀ : exp} → if tt M₁ M₀ ↦ M₁
+    if/ff : {M₁ M₀ : exp} → if ff M₁ M₀ ↦ M₀
     rec/principal : ∀ {M M' M₀ M₁} → M ↦ M' → rec M₀ M₁ M ↦ rec M₀ M₁ M'
     rec/zero : ∀ {M₀ M₁} → rec M₀ M₁ zero ↦ M₀
-    rec/succ : ∀ {M M₀ M₁} → rec M₀ M₁ (succ M) ↦ M₁ (rec M₀ M₁ M)
+    rec/succ : ∀ {M M₀ M₁} → rec M₀ M₁ (succ M) ↦ M₁ M (rec M₀ M₁ M)
     _·1/principal : {M M' : exp} → M ↦ M' → M ·1 ↦ M' ·1
     _·1 : {M₁ M₂ : exp} → ⟨ M₁ , M₂ ⟩ ·1 ↦ M₁
     _·2/principal : {M M' : exp} → M ↦ M' → M ·2 ↦ M' ·2
@@ -114,8 +121,8 @@ module Example1 where
   ↦-deterministic : Deterministic _↦_
   ↦-deterministic (if/principal h) (if/principal h') with ↦-deterministic h h'
   ... | refl = refl
-  ↦-deterministic (if/tt _ M₀) (if/tt _ .M₀) = refl
-  ↦-deterministic (if/ff M₁ _) (if/ff .M₁ _) = refl
+  ↦-deterministic if/tt if/tt = refl
+  ↦-deterministic if/ff if/ff = refl
   ↦-deterministic (rec/principal h) (rec/principal h') with ↦-deterministic h h'
   ... | refl = refl
   ↦-deterministic rec/zero rec/zero = refl
@@ -191,6 +198,17 @@ module Example1 where
     ≐type-isPartialEquivalence : IsPartialEquivalence (_≐_type)
     ≐type-isPartialEquivalence = record { sym = ≐type-sym ; trans = ≐type-trans }
 
+    typeᵒ-val : {A A' : exp} → A ≐ A' typeᵒ → A val
+    typeᵒ-val Bool = Bool
+    typeᵒ-val Nat = Nat
+    typeᵒ-val (h₁ × h₂) = typeᵒ-val h₁ × typeᵒ-val h₂
+
+    typeᵒ-val' : {A A' : exp} → A ≐ A' typeᵒ → A' val
+    typeᵒ-val' = typeᵒ-val ∘ ≐typeᵒ-sym
+
+    typeᵒ-type : {A A' : exp} → A ≐ A' typeᵒ → A ≐ A' type
+    typeᵒ-type A≐A'typeᵒ = ⇓ (val⇓ (typeᵒ-val A≐A'typeᵒ)) ,⇓ (val⇓ (typeᵒ-val' A≐A'typeᵒ)) , A≐A'typeᵒ
+
   module Membership where
     open Type
 
@@ -229,6 +247,9 @@ module Example1 where
     ... | ()
     R/Nat-trans (succ h h₁ r) (succ h₁' h' r') with ⇓-deterministic h₁ h₁'
     ... | refl = succ h h' (R/Nat-trans r r')
+
+    R/Nat-isPartialEquivalence : IsPartialEquivalence R/Nat
+    R/Nat-isPartialEquivalence = record { sym = R/Nat-sym ; trans = R/Nat-trans }
 
     data _∋ᵒ_≐_ : (A : exp) → exp → exp → Set
     record _∋_≐_ (A : exp) (M M' : exp) : Set
@@ -287,12 +308,12 @@ module Example1 where
 
     -- Lemmas
 
-    rev-closure-A : {A A' M : exp} → A ↦ A' → A' ∋ M → A ∋ M
-    rev-closure-A A↦A' (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) = ⇓ step⇓ A↦A' A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ
+    rev-closure-A : {A A' M₁ M₂ : exp} → A ↦ A' → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
+    rev-closure-A A↦A' (⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , Aᵒ∋ᵒM₁ᵒ≐M₂ᵒ) = ⇓ step⇓ A↦A' A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , Aᵒ∋ᵒM₁ᵒ≐M₂ᵒ
 
-    rev-closure-A* : {A A' M : exp} → A ↦* A' → A' ∋ M → A ∋ M
-    rev-closure-A* here A'∋M = A'∋M
-    rev-closure-A* (step A↦A'' A''↦*A') A'∋M = rev-closure-A A↦A'' (rev-closure-A* A''↦*A' A'∋M)
+    rev-closure-A* : {A A' M₁ M₂ : exp} → A ↦* A' → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
+    rev-closure-A* here A'∋M₁≐M₂ = A'∋M₁≐M₂
+    rev-closure-A* (step A↦A'' A''↦*A') A'∋M₁≐M₂ = rev-closure-A A↦A'' (rev-closure-A* A''↦*A' A'∋M₁≐M₂)
 
     rev-closure-M : {A M M' : exp} → M ↦ M' → A ∋ M' → A ∋ M
     rev-closure-M M↦M' (⇓ A⇓Aᵒ ,⇓ M'⇓Mᵒ ,⇓ M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ) = ⇓ A⇓Aᵒ ,⇓ step⇓ M↦M' M'⇓Mᵒ ,⇓ step⇓ M↦M' M'⇓M'ᵒ , A∋ᵒMᵒ≐M'ᵒ
@@ -301,37 +322,91 @@ module Example1 where
     rev-closure-M* here A∋M' = A∋M'
     rev-closure-M* (step M↦M'' M''↦*M') A∋M' = rev-closure-M M↦M'' (rev-closure-M* M''↦*M' A∋M')
 
-    lift-principal : (f : exp → exp) → ({M M' : exp} → M ↦ M' → f M ↦ f M') → {M M' : exp} → M ↦* M' → f M ↦* f M'
-    lift-principal f h here = here
-    lift-principal f h (step M↦M'' M''↦*M') = step (h M↦M'') (lift-principal f h M''↦*M')
+    rev-closure-M*₂ : {A M₁ M₁' M₂ M₂' : exp} → M₁ ↦* M₁' → M₂ ↦* M₂' → A ∋ M₁' ≐ M₂' → A ∋ M₁ ≐ M₂
+    rev-closure-M*₂ M₁↦*M₁' M₂↦*M₂' (⇓ A⇓Aᵒ ,⇓ M₁'⇓M₁'ᵒ ,⇓ M₂'⇓M₂'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) =
+      ⇓ A⇓Aᵒ ,⇓ ((↦*-append M₁↦*M₁' (_⇓_.M↦*M' M₁'⇓M₁'ᵒ)) and _⇓_.M'val M₁'⇓M₁'ᵒ) ,⇓ ((↦*-append M₂↦*M₂' (_⇓_.M↦*M' M₂'⇓M₂'ᵒ)) and _⇓_.M'val M₂'⇓M₂'ᵒ) , Aᵒ∋ᵒMᵒ≐M'ᵒ
 
+    lemma/moveᵒ : {A A' M₁ M₂ : exp} → A ≐ A' typeᵒ → A' ∋ᵒ M₁ ≐ M₂ → A ∋ᵒ M₁ ≐ M₂
+    lemma/move : {A A' M₁ M₂ : exp} → A ≐ A' type → A' ∋ M₁ ≐ M₂ → A ∋ M₁ ≐ M₂
+
+    lemma/moveᵒ Bool A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
+    lemma/moveᵒ Nat A'∋ᵒM₁≐M₂ = A'∋ᵒM₁≐M₂
+    lemma/moveᵒ (A₁≐A₁'typeᵒ × A₂≐A₂'typeᵒ) (A₁'∋ᵒM₁≐M₁' × A₂'∋ᵒM₂≐M₂') = lemma/move (typeᵒ-type A₁≐A₁'typeᵒ) A₁'∋ᵒM₁≐M₁' × lemma/move (typeᵒ-type A₂≐A₂'typeᵒ) A₂'∋ᵒM₂≐M₂'
+
+    lemma/move (⇓ A⇓Aᵒ ,⇓ A'⇓A'ᵒ₁ , Aᵒ≐A'ᵒtypeᵒ) (⇓ A'⇓A'ᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ) with ⇓-deterministic A'⇓A'ᵒ₁ A'⇓A'ᵒ
+    ... | refl = ⇓ A⇓Aᵒ ,⇓ M₁⇓M₁ᵒ ,⇓ M₂⇓M₂ᵒ , lemma/moveᵒ Aᵒ≐A'ᵒtypeᵒ A'ᵒ∋ᵒM₁ᵒ≐M₂ᵒ
 
   open Type
   open Membership
+
+  -- Hypotheticals
+
+  _>>_ : (A : exp) → (exp → exp → Set) → Set
+  A >> J = {a a' : exp} → A ∋ a ≐ a' → J a a'
+
+  _>>_≐_type : (A : exp) (B B' : exp → exp) → Set
+  A >> B ≐ B' type = A >> λ a a' → B a ≐ B' a' type
+
+  _>>_type : (A : exp) (B : exp → exp) → Set
+  A >> B type = A >> B ≐ B type
+
+  _>>_∋_≐_ : (A : exp) (B N N' : exp → exp) → Set
+  A >> B ∋ N ≐ N' = A >> λ a a' → B a ∋ N a ≐ N' a'
+
+  _>>_∋_ : (A : exp) (B N : exp → exp) → Set
+  A >> B ∋ N = A >> B ∋ N ≐ N
 
   -- Facts
 
   fact/if : {A M M₁ M₀ M₁' M₀' : exp} → Bool ∋ M → A ∋ M₁ → A ∋ M₀ → A ∋ if M M₁ M₀
   fact/if {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) h₁ h₀ with val⇓val Bool A⇓Aᵒ
-  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (tt _ M'ᵒ⇓tt)) h₁ h₀ | refl =
-    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M'⇓M'ᵒ) (_⇓_.M↦*M' M'ᵒ⇓tt)) in
-    rev-closure-M* (stepʳ (step-principal M₁ M₀) (if/tt M₁ M₀)) h₁
-  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (ff _ M'ᵒ⇓ff)) h₁ h₀ | refl =
-    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M'⇓M'ᵒ) (_⇓_.M↦*M' M'ᵒ⇓ff)) in
-    rev-closure-M* (stepʳ (step-principal M₁ M₀) (if/ff M₁ M₀)) h₀
+  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (tt Mᵒ⇓tt _)) h₁ h₀ | refl =
+    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M⇓Mᵒ) (_⇓_.M↦*M' Mᵒ⇓tt)) in
+    rev-closure-M* (stepʳ (step-principal M₁ M₀) if/tt) h₁
+  fact/if {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (ff Mᵒ⇓ff _)) h₁ h₀ | refl =
+    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M⇓Mᵒ) (_⇓_.M↦*M' Mᵒ⇓ff)) in
+    rev-closure-M* (stepʳ (step-principal M₁ M₀) if/ff) h₀
 
   fact/if' : {M A₁ A₀ M₁ M₀ : exp} → Bool ∋ M → A₁ ∋ M₁ → A₀ ∋ M₀ → if M A₁ A₀ ∋ if M M₁ M₀
   fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) h₁ h₀ with val⇓val Bool A⇓Aᵒ
-  fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (tt _ M'ᵒ⇓tt)) h₁ h₀ | refl =
-    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M'⇓M'ᵒ) (_⇓_.M↦*M' M'ᵒ⇓tt)) in
-    rev-closure-A* (stepʳ (step-principal A₁ A₀) (if/tt A₁ A₀)) $
-    rev-closure-M* (stepʳ (step-principal M₁ M₀) (if/tt M₁ M₀)) $
+  fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (tt Mᵒ⇓tt _)) h₁ h₀ | refl =
+    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M⇓Mᵒ) (_⇓_.M↦*M' Mᵒ⇓tt)) in
+    rev-closure-A* (stepʳ (step-principal A₁ A₀) if/tt) $
+    rev-closure-M* (stepʳ (step-principal M₁ M₀) if/tt) $
     h₁
-  fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (ff _ M'ᵒ⇓ff)) h₁ h₀ | refl =
-    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M'⇓M'ᵒ) (_⇓_.M↦*M' M'ᵒ⇓ff)) in
-    rev-closure-A* (stepʳ (step-principal A₁ A₀) (if/ff A₁ A₀)) $
-    rev-closure-M* (stepʳ (step-principal M₁ M₀) (if/ff M₁ M₀)) $
+  fact/if' {A₁ = A₁} {A₀ = A₀} {M₁ = M₁} {M₀ = M₀} (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M'⇓M'ᵒ , Bool (ff Mᵒ⇓ff _)) h₁ h₀ | refl =
+    let step-principal M₁ M₀ = lift-principal (λ M → if M M₁ M₀) if/principal (↦*-append (_⇓_.M↦*M' M⇓Mᵒ) (_⇓_.M↦*M' Mᵒ⇓ff)) in
+    rev-closure-A* (stepʳ (step-principal A₁ A₀) if/ff) $
+    rev-closure-M* (stepʳ (step-principal M₁ M₀) if/ff) $
     h₀
+
+  R/Nat⇒Nat∋≐ : {N N' : exp} → R/Nat N N' → Nat ∋ N ≐ N'
+  R/Nat⇒Nat∋≐ (zero h h') = ⇓ here and Nat ,⇓ h ,⇓ h' , Nat (zero (here and _⇓_.M'val h) (here and _⇓_.M'val h'))
+  R/Nat⇒Nat∋≐ (succ h h' r) = ⇓ here and Nat ,⇓ h ,⇓ h' , Nat (succ (here and _⇓_.M'val h) (here and _⇓_.M'val h') r)
+
+  fact/rec : ∀ {B M₀ M₁ M} →
+    Nat >> B type →
+    B zero ∋ M₀ →
+    Nat >> (λ a a' → B a >> λ b b' → B (succ a) ∋ M₁ a b ≐ M₁ a' b') →
+    Nat ∋ M → B M ∋ rec M₀ M₁ M
+  fact/rec Nat>>Btype h₀ h₁ (⇓ A⇓Aᵒ ,⇓ M⇓Mᵒ ,⇓ M⇓M'ᵒ , Aᵒ∋ᵒMᵒ≐M'ᵒ) with val⇓val Nat A⇓Aᵒ
+  fact/rec {B} {M₀} {M₁} Nat>>Btype h₀ h₁ (⇓ A⇓Nat ,⇓ M⇓Mᵒ ,⇓ M⇓M'ᵒ , Nat r) | refl = induction (_⇓_.M↦*M' M⇓Mᵒ) (_⇓_.M↦*M' M⇓M'ᵒ) r
+    where
+      induction : {M M' Mᵒ M'ᵒ : exp} → M ↦* Mᵒ → M' ↦* M'ᵒ → R/Nat Mᵒ M'ᵒ → B M ∋ rec M₀ M₁ M ≐ rec M₀ M₁ M'
+      induction M↦*Mᵒ M'↦*M'ᵒ (zero Mᵒ⇓zero Mᵒ⇓zero') =
+        let step-principal  = lift-principal (rec M₀ M₁) rec/principal (↦*-append M↦*Mᵒ (_⇓_.M↦*M' Mᵒ⇓zero))
+            step-principal' = lift-principal (rec M₀ M₁) rec/principal (↦*-append M'↦*M'ᵒ (_⇓_.M↦*M' Mᵒ⇓zero'))
+        in
+        rev-closure-M*₂ (stepʳ step-principal rec/zero) (stepʳ step-principal' rec/zero) $
+        lemma/move (Nat>>Btype (⇓ A⇓Nat ,⇓ step*⇓ M↦*Mᵒ Mᵒ⇓zero ,⇓ val⇓ zero , Nat (zero (val⇓ zero) (val⇓ zero)))) $
+        h₀
+      induction M↦*Mᵒ M'↦*M'ᵒ (succ Mᵒ⇓succN Mᵒ⇓succN' r) =
+        let step-principal  = lift-principal (rec M₀ M₁) rec/principal (↦*-append M↦*Mᵒ (_⇓_.M↦*M' Mᵒ⇓succN))
+            step-principal' = lift-principal (rec M₀ M₁) rec/principal (↦*-append M'↦*M'ᵒ (_⇓_.M↦*M' Mᵒ⇓succN'))
+        in
+        rev-closure-M*₂ (stepʳ step-principal rec/succ) (stepʳ step-principal' rec/succ) $
+        lemma/move (Nat>>Btype (⇓ A⇓Nat ,⇓ step*⇓ M↦*Mᵒ Mᵒ⇓succN ,⇓ val⇓ succ , Nat (succ (val⇓ succ) (val⇓ succ) (per-refl R/Nat-isPartialEquivalence r)))) $
+        h₁ (R/Nat⇒Nat∋≐ r) (induction here here r)
 
   fact/·1 : {A₁ A₂ M : exp} → A₁ val → A₂ val → (A₁ × A₂) ∋ M → A₁ ∋ (M ·1)
   fact/·1 {A₁ = A₁} A₁val A₂val (⇓ A⇓Aᵒ ,⇓ M⇓⟨M₁,M₂⟩ ,⇓ M⇓⟨M₁',M₂'⟩ , Aᵒ∋ᵒMᵒ≐M'ᵒ) with val⇓val (A₁val × A₂val) A⇓Aᵒ
